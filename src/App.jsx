@@ -136,14 +136,14 @@ const styles = `
   .drag-chip { background: #0c1520; border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Hack', monospace; font-size: 13px; padding: 6px 12px; cursor: grab; user-select: none; border-radius: 2px; }
   .drag-chip:active { cursor: grabbing; border-color: #1de9b6; color: #1de9b6; }
 
-  /* EXAM SIM */
-  .exam-header { background: #0c1520; border: 1px solid rgba(255,255,255,0.1); padding: 18px 22px; margin-bottom: 18px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border-radius: 4px; }
-  .exam-timer { font-family: 'Hack', monospace; font-size: 32px; color: #ffffff; }
-  .exam-timer.danger { color: #ff4444; }
-  .exam-q-dot { width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.2); background: #0c1520; font-size: 13px; color: rgba(255,255,255,0.6); cursor: pointer; font-family: 'Hack', monospace; border-radius: 4px; }
-  .exam-q-dot:hover, .exam-q-dot.current { border-color: #00e5ff; color: #00e5ff; background: rgba(0,229,255,0.1); }
-
-  @media(max-width:640px){ .teach-cols,.teach-cols-3{grid-template-columns:1fr} .answer-grid{grid-template-columns:1fr} }
+  /* DRAG & DROP DRILL */
+  .drag-zone { border: 2px solid rgba(0,229,255,0.15); min-height: 64px; padding: 12px; background: #04080c; box-shadow: inset 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-wrap: wrap; gap: 10px; border-radius: 6px; transition: all 0.2s; align-items: center; }
+  .drag-zone.over { background: rgba(0,229,255,0.05); border-color: #00e5ff; box-shadow: inset 0 0 20px rgba(0,229,255,0.15); }
+  .drag-chip { background: linear-gradient(180deg, #111d2b 0%, #0c1520 100%); border: 1px solid #00e5ff; border-left: 6px solid #1de9b6; color: #ffffff; font-family: 'Hack', monospace; font-size: 13px; padding: 8px 14px; cursor: grab; user-select: none; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; transition: transform 0.1s; }
+  .drag-chip::before { content: '⣿'; margin-right: 10px; color: #00e5ff; opacity: 0.6; font-size: 14px; }
+  .drag-chip:hover { border-color: #1de9b6; }
+  .drag-chip:active { cursor: grabbing; border-color: #1de9b6; background: rgba(29, 233, 182, 0.1); transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+  .empty-port-text { font-family: 'Hack', monospace; font-size: 12px; color: rgba(0,229,255,0.2); width: 100%; text-align: center; pointer-events: none; }
 `;
 
 // ─── QUESTION BANKS ──────────────────────────────────────────────────────────
@@ -1206,12 +1206,14 @@ function SwitchingModule({ onHome }) {
     return (
       <div>
         <StatRow stats={[{val:qIdx+1,label:"EXERCISE"},{val:vlanQs.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
-        <div style={{margin:"10px 0",padding:"10px 14px",border:"1px solid rgba(0,229,255,0.2)",background:"rgba(0,229,255,0.02)",borderRadius:4}}>
-          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:4,letterSpacing:2,fontWeight:"bold"}}>{q.title}</div>
+        
+        <div style={{margin:"14px 0",padding:"14px 18px",border:"1px solid rgba(0,229,255,0.2)",background:"rgba(0,229,255,0.02)",borderRadius:4}}>
+          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:2,fontWeight:"bold"}}>{q.title}</div>
           <div style={{fontSize:14,color:"#ffffff"}}>{q.desc}</div>
         </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:1,fontWeight:"bold"}}>AVAILABLE ITEMS</div>
+
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:8,letterSpacing:1,fontWeight:"bold"}}>UNCONNECTED CABLES / MODULES</div>
           <div className="drag-zone" 
                onDragOver={e=>e.preventDefault()} 
                onDrop={(e)=>{
@@ -1222,29 +1224,37 @@ function SwitchingModule({ onHome }) {
                  }
                }}>
             {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(i); e.dataTransfer.setData('text/plain', i);}}>{q.pools[i]}</div>)}
-            {unplaced.length===0&&<span style={{fontSize:13,color:"rgba(255,255,255,0.3)",padding:"6px 0"}}>[ ALL PLACED ]</span>}
+            {unplaced.length===0&&<span className="empty-port-text">[ ALL MODULES CONNECTED ]</span>}
           </div>
         </div>
-        <div style={{display:"grid",gap:12}}>
+
+        <div style={{display:"grid",gap:16}}>
           {q.zones.map((zone,zi)=>(
             <div key={zi}>
-              <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:4,letterSpacing:1,fontWeight:"bold"}}>{zone.label}</div>
+              <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:1,fontWeight:"bold"}}>{zone.label}</div>
               <div className="drag-zone" 
                    onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} 
                    onDragLeave={e=>e.currentTarget.classList.remove("over")} 
                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove("over");handleDrop(zi);}}>
-                {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(item); e.dataTransfer.setData('text/plain', item);}} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to remove">{q.pools[item]}</div>)}
+                
+                {/* Render the dropped chips */}
+                {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(item); e.dataTransfer.setData('text/plain', item);}} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to disconnect">{q.pools[item]}</div>)}
+                
+                {/* Show empty port indicator if nothing is placed here */}
+                {!(placed[zi]||[]).length && <span className="empty-port-text">[ EMPTY PORT ]</span>}
               </div>
             </div>
           ))}
         </div>
-        <div style={{display:"flex",gap:8,marginTop:16}}>
-          <button className="btn" onClick={verify} disabled={Object.values(placed).flat().length!==q.pools.length}>VERIFY</button>
-          <button className="btn btn-warn" onClick={()=>{setPlaced({});setVerified(null);}}>RESET</button>
+
+        <div style={{display:"flex",gap:10,marginTop:20}}>
+          <button className="btn" onClick={verify} disabled={Object.values(placed).flat().length!==q.pools.length}>VERIFY CONNECTIONS</button>
+          <button className="btn btn-warn" onClick={()=>{setPlaced({});setVerified(null);}}>DISCONNECT ALL</button>
         </div>
+
         {verified!==null && <div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:16}}>
-          <strong>{verified?"✓ CORRECT":"✗ TRY AGAIN"}</strong>{verified?" — "+q.explain:" — Some items are wrong. Click to remove them."}
-          {verified && <div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT ›"}</button></div>}
+          <strong>{verified?"✓ LINK ESTABLISHED":"✗ CONNECTION FAILED"}</strong>{verified?" — "+q.explain:" — Incorrect port assignments. Click a module to disconnect it and try again."}
+          {verified && <div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT EXERCISE ›"}</button></div>}
         </div>}
       </div>
     );
