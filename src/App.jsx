@@ -1,208 +1,40 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
-// ─── STYLES ──────────────────────────────────────────────────────────────────
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Orbitron:wght@700&display=swap');
+  
+  /* 1. SOFTER COLORS & BACKGROUNDS */
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0a0a0a; }
-  .app { min-height: 100vh; background: #0a0a0a; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; }
-  .scanlines { position: fixed; inset: 0; pointer-events: none; z-index: 100; background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px); }
-  .crt-glow { position: fixed; inset: 0; pointer-events: none; z-index: 99; box-shadow: inset 0 0 120px rgba(0,255,65,0.04); }
-  .header { border-bottom: 1px solid #00ff4133; padding: 12px 20px; display: flex; align-items: center; gap: 14px; background: rgba(0,255,65,0.02); flex-wrap: wrap; }
-  .logo { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #00ff41; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff4166; letter-spacing: 3px; }
-  .header-tag { font-size: 11px; color: #00ff4166; border: 1px solid #00ff4133; padding: 2px 8px; animation: blink 2s step-end infinite; }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  .nav { display: flex; gap: 3px; padding: 8px 20px; border-bottom: 1px solid #00ff4122; flex-wrap: wrap; }
-  .nav-btn { background: transparent; border: 1px solid #00ff4133; color: #00ff4188; font-family: 'Fira Code', monospace; font-size: 12px; padding: 5px 12px; cursor: pointer; transition: all 0.15s; }
-  .nav-btn:hover, .nav-btn.active { background: rgba(0,255,65,0.1); border-color: #00ff41; color: #00ff41; text-shadow: 0 0 6px #00ff41; }
-  .nav-btn.exam-btn { border-color: #ffaa0066; color: #ffaa00aa; }
+  body { background: #111827; }
+  .app { min-height: 100vh; background: #111827; color: #4ade80; font-family: 'Fira Code', monospace; font-size: 16px; line-height: 1.6; }
+  
+  /* 2. REDUCED VISUAL NOISE */
+  .scanlines { position: fixed; inset: 0; pointer-events: none; z-index: 100; background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.02) 2px,rgba(0,0,0,0.02) 4px); }
+  .crt-glow { position: fixed; inset: 0; pointer-events: none; z-index: 99; box-shadow: inset 0 0 80px rgba(74,222,128,0.02); }
+  
+  .header { border-bottom: 1px solid rgba(74,222,128,0.2); padding: 12px 20px; display: flex; align-items: center; gap: 14px; background: rgba(74,222,128,0.02); flex-wrap: wrap; }
+  .logo { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #4ade80; letter-spacing: 3px; }
+  .header-tag { font-size: 13px; color: rgba(74,222,128,0.6); border: 1px solid rgba(74,222,128,0.3); padding: 2px 8px; }
+  
+  .nav { display: flex; gap: 3px; padding: 8px 20px; border-bottom: 1px solid rgba(74,222,128,0.15); flex-wrap: wrap; }
+  .nav-btn { background: transparent; border: 1px solid rgba(74,222,128,0.3); color: rgba(74,222,128,0.8); font-family: 'Fira Code', monospace; font-size: 13px; padding: 6px 14px; cursor: pointer; transition: all 0.15s; }
+  .nav-btn:hover, .nav-btn.active { background: rgba(74,222,128,0.1); border-color: #4ade80; color: #4ade80; }
+  .nav-btn.exam-btn { border-color: rgba(255,170,0,0.4); color: rgba(255,170,0,0.8); }
   .nav-btn.exam-btn:hover, .nav-btn.exam-btn.active { background: rgba(255,170,0,0.1); border-color: #ffaa00; color: #ffaa00; }
-  .nav-btn.progress-btn { border-color: #00ccff55; color: #00ccff88; }
+  .nav-btn.progress-btn { border-color: rgba(0,204,255,0.4); color: rgba(0,204,255,0.8); }
   .nav-btn.progress-btn:hover, .nav-btn.progress-btn.active { background: rgba(0,204,255,0.1); border-color: #00ccff; color: #00ccff; }
+  
   .main { padding: 18px 20px; max-width: 1140px; margin: 0 auto; }
-  .btn { background: transparent; border: 1px solid #00ff41; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 13px; padding: 7px 18px; cursor: pointer; transition: all 0.15s; }
-  .btn:hover { background: rgba(0,255,65,0.12); text-shadow: 0 0 8px #00ff41; box-shadow: 0 0 14px rgba(0,255,65,0.2); }
+  
+  .btn { background: transparent; border: 1px solid #4ade80; color: #4ade80; font-family: 'Fira Code', monospace; font-size: 14px; padding: 8px 18px; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: rgba(74,222,128,0.12); box-shadow: 0 0 14px rgba(74,222,128,0.1); }
   .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-  .btn-danger { border-color: #ff3333; color: #ff3333; }
-  .btn-danger:hover { background: rgba(255,51,51,0.12); }
+  .btn-danger { border-color: #ff4444; color: #ff4444; }
+  .btn-danger:hover { background: rgba(255,68,68,0.12); box-shadow: 0 0 14px rgba(255,68,68,0.1); }
   .btn-warn { border-color: #ffaa00; color: #ffaa00; }
-  .btn-warn:hover { background: rgba(255,170,0,0.1); }
+  .btn-warn:hover { background: rgba(255,170,0,0.1); box-shadow: 0 0 14px rgba(255,170,0,0.1); }
   .btn-info { border-color: #00ccff; color: #00ccff; }
-  .btn-info:hover { background: rgba(0,204,255,0.1); }
-  .btn-gold { border-color: #ffdd00; color: #ffdd00; }
-  .btn-gold:hover { background: rgba(255,221,0,0.1); }
-
-  .mod-tabs { display: flex; gap: 0; border-bottom: 1px solid #00ff4133; flex-wrap: wrap; }
-  .mod-tab { background: transparent; border: 1px solid #00ff4122; border-bottom: none; color: #00ff4166; font-family: 'Fira Code', monospace; font-size: 12px; padding: 7px 16px; cursor: pointer; transition: all 0.15s; margin-right: 3px; }
-  .mod-tab:hover { color: #00ff41; border-color: #00ff4155; }
-  .mod-tab.active { background: rgba(0,255,65,0.06); border-color: #00ff41; color: #00ff41; }
-  .mod-content { border: 1px solid #00ff4133; border-top: none; padding: 20px; background: rgba(0,255,65,0.01); }
-
-  /* HOME */
-  .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 10px; }
-  .module-card { border: 1px solid #00ff4133; padding: 18px; cursor: pointer; transition: all 0.2s; background: rgba(0,255,65,0.02); position: relative; overflow: hidden; }
-  .module-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:#00ff41; transform:scaleX(0); transition:transform 0.2s; }
-  .module-card:hover { border-color:#00ff41; background:rgba(0,255,65,0.05); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,255,65,0.1); }
-  .module-card:hover::after { transform:scaleX(1); }
-  .module-card.new-card { border-color: #00ccff44; }
-  .module-card.new-card::after { background: #00ccff; }
-  .module-card.new-card:hover { border-color: #00ccff; box-shadow: 0 6px 20px rgba(0,204,255,0.1); }
-  .module-icon { font-size: 26px; margin-bottom: 8px; }
-  .module-title { font-family: 'Orbitron', sans-serif; font-size: 13px; color: #00ff41; margin-bottom: 6px; letter-spacing: 1px; }
-  .module-card.new-card .module-title { color: #00ccff; }
-  .module-desc { font-size: 12px; color: #00ff41aa; line-height: 1.6; }
-  .module-tag { margin-top: 10px; font-size: 10px; color: #00ff4155; border: 1px solid #00ff4133; display: inline-block; padding: 2px 7px; }
-  .new-badge { font-size: 10px; color: #00ccff; border: 1px solid #00ccff66; display: inline-block; padding: 1px 6px; margin-left: 6px; }
-
-  /* TEACH */
-  .scroll-area { max-height: 560px; overflow-y: auto; padding-right: 6px; }
-  .scroll-area::-webkit-scrollbar { width: 4px; }
-  .scroll-area::-webkit-scrollbar-thumb { background: #00ff4133; }
-  .teach-h1 { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #00ff41; letter-spacing: 2px; margin-bottom: 12px; }
-  .teach-h2 { font-size: 11px; color: #00ff41bb; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; border-left: 3px solid #00ff41; padding-left: 10px; margin-top: 18px; font-weight: 500; }
-  .teach-p { font-size: 13px; color: #00ff41cc; line-height: 1.85; margin-bottom: 10px; }
-  .teach-code { font-family: 'Fira Code', monospace; background: rgba(0,255,65,0.06); border: 1px solid #00ff4133; padding: 12px 14px; font-size: 12px; color: #00ff41dd; line-height: 1.85; margin: 10px 0; white-space: pre; overflow-x: auto; }
-  .teach-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
-  .teach-table th { border: 1px solid #00ff4144; padding: 8px 10px; color: #00ff41bb; text-align: left; font-weight: 500; background: rgba(0,255,65,0.04); }
-  .teach-table td { border: 1px solid #00ff4122; padding: 8px 10px; color: #00ff41bb; }
-  .teach-table tr:hover td { background: rgba(0,255,65,0.03); color: #00ff41; }
-  .teach-tip { border: 1px solid #ffaa0055; background: rgba(255,170,0,0.04); padding: 10px 14px; font-size: 13px; color: #ffaa00cc; line-height: 1.8; margin: 10px 0; }
-  .teach-tip::before { content: '⚡ EXAM TIP: '; color: #ffaa00; font-weight: 500; }
-  .teach-info { border: 1px solid #00ccff44; background: rgba(0,204,255,0.03); padding: 10px 14px; font-size: 13px; color: #00ccffcc; line-height: 1.8; margin: 10px 0; }
-  .teach-info::before { content: 'ℹ KEY CONCEPT: '; color: #00ccff; font-weight: 500; }
-  .teach-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-  .teach-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; }
-  .teach-card { border: 1px solid #00ff4133; padding: 12px; background: rgba(0,255,65,0.02); }
-  .teach-card-title { font-size: 11px; color: #00ff41; letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; font-weight: 500; }
-  .teach-card-body { font-size: 12px; color: #00ff41aa; line-height: 1.75; }
-  .cheatsheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 7px; margin: 10px 0; }
-  .cheatsheet-item { border: 1px solid #00ff4133; padding: 8px 10px; background: rgba(0,255,65,0.03); }
-  .cheatsheet-key { font-size: 15px; color: #00ff41; font-weight: 500; }
-  .cheatsheet-val { font-size: 11px; color: #00ff41aa; margin-top: 2px; }
-
-  /* QUIZ */
-  .subnet-display { font-family: 'Fira Code', monospace; font-size: 26px; font-weight: 500; color: #00ff41; text-shadow: 0 0 12px #00ff41; letter-spacing: 3px; text-align: center; padding: 16px; border: 1px solid #00ff4133; background: rgba(0,255,65,0.03); margin: 12px 0; }
-  .answer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
-  .answer-btn { background: transparent; border: 1px solid #00ff4144; color: #00ff41cc; font-family: 'Fira Code', monospace; font-size: 13px; padding: 11px 13px; cursor: pointer; transition: all 0.15s; text-align: left; line-height: 1.45; }
-  .answer-btn:hover { background: rgba(0,255,65,0.08); border-color: #00ff41; }
-  .answer-btn.correct { background: rgba(0,255,65,0.18); border-color: #00ff41; color: #00ff41; }
-  .answer-btn.wrong { background: rgba(255,51,51,0.12); border-color: #ff3333; color: #ff6666; }
-  .feedback { margin-top: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.8; }
-  .feedback.ok { border: 1px solid #00ff4166; color: #00ff41cc; background: rgba(0,255,65,0.04); }
-  .feedback.bad { border: 1px solid #ff333355; color: #ff8888; background: rgba(255,51,51,0.04); }
-  .progress-bar { height: 3px; background: #00ff4122; margin: 10px 0; }
-  .progress-fill { height: 100%; background: #00ff41; box-shadow: 0 0 6px #00ff41; transition: width 0.3s; }
-  .stat-row { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
-  .stat { border: 1px solid #00ff4133; padding: 7px 12px; text-align: center; flex: 1; min-width: 70px; background: rgba(0,255,65,0.02); }
-  .stat-val { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #00ff41; }
-  .stat-label { font-size: 10px; color: #00ff4155; margin-top: 2px; }
-  .result-screen { text-align: center; padding: 36px 20px; }
-  .result-score { font-family: 'Orbitron', sans-serif; font-size: 52px; color: #00ff41; text-shadow: 0 0 24px #00ff41, 0 0 48px #00ff4166; line-height: 1; }
-
-  /* TOPO */
-  .topo-canvas { border: 1px solid #00ff4133; background: rgba(0,0,0,0.4); position: relative; height: 360px; overflow: hidden; }
-  .device-node { position: absolute; width: 68px; text-align: center; cursor: grab; user-select: none; }
-  .device-node:active { cursor: grabbing; }
-  .device-icon { width: 44px; height: 44px; border: 2px solid #00ff4166; background: rgba(0,255,65,0.07); display: flex; align-items: center; justify-content: center; font-size: 19px; margin: 0 auto 3px; transition: all 0.15s; }
-  .device-node:hover .device-icon, .device-node.selected .device-icon { border-color: #00ff41; background: rgba(0,255,65,0.18); box-shadow: 0 0 10px rgba(0,255,65,0.35); }
-  .device-label { font-size: 10px; color: #00ff41aa; }
-  .topo-device-pick { border: 1px solid #00ff4133; padding: 7px; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #00ff41aa; transition: all 0.15s; background: transparent; font-family: 'Fira Code', monospace; width: 100%; text-align: left; margin-bottom: 3px; }
-  .topo-device-pick:hover { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.05); }
-  .connection-svg { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
-
-  /* DRAG */
-  .drag-zone { min-height: 66px; border: 1px dashed #00ff4144; padding: 10px; display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-start; transition: all 0.2s; }
-  .drag-zone.over { border-color: #00ff41; background: rgba(0,255,65,0.05); }
-  .drag-chip { border: 1px solid #00ff4166; padding: 5px 10px; font-size: 12px; cursor: grab; background: rgba(0,255,65,0.07); color: #00ff41cc; user-select: none; transition: all 0.15s; font-family: 'Fira Code', monospace; }
-  .drag-chip:hover { border-color: #00ff41; color: #00ff41; box-shadow: 0 0 6px rgba(0,255,65,0.25); }
-
-  /* ROUTING */
-  .routing-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
-  .routing-table th { border: 1px solid #00ff4144; padding: 8px 10px; color: #00ff41bb; text-align: left; font-weight: 500; background: rgba(0,255,65,0.04); }
-  .routing-table td { border: 1px solid #00ff4122; padding: 8px 10px; color: #00ff41bb; }
-  .routing-table tr:hover td { background: rgba(0,255,65,0.03); }
-  .highlighted-row td { color: #00ff41 !important; background: rgba(0,255,65,0.07) !important; }
-  .terminal-line { font-size: 13px; color: #00ff41aa; line-height: 1.9; }
-  .terminal-line .prompt { color: #00ff41; margin-right: 8px; }
-
-  /* MAGIC CALC */
-  .magic-input-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
-  .magic-input { background: rgba(0,255,65,0.04); border: 1px solid #00ff4166; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 16px; padding: 8px 14px; outline: none; width: 220px; }
-  .magic-input:focus { border-color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.18); }
-  .magic-cidr-input { background: rgba(0,255,65,0.04); border: 1px solid #00ff4166; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 16px; padding: 8px 10px; outline: none; width: 64px; text-align: center; }
-  .magic-cidr-input:focus { border-color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.18); }
-  .bit-grid { display: flex; gap: 3px; flex-wrap: nowrap; margin: 10px 0; overflow-x: auto; padding-bottom: 4px; }
-  .bit-group { display: flex; gap: 2px; }
-  .bit-group + .bit-group { margin-left: 7px; }
-  .bit-cell { width: 30px; height: 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid; font-family: 'Fira Code', monospace; font-size: 13px; font-weight: 500; flex-shrink: 0; }
-  .bit-cell.net { border-color: #00ff4166; background: rgba(0,255,65,0.14); color: #00ff41; }
-  .bit-cell.host { border-color: #00ccff44; background: rgba(0,204,255,0.07); color: #00ccff; }
-  .bit-cell .bit-pos { font-size: 8px; opacity: 0.5; margin-top: 1px; }
-  .octet-label { text-align: center; font-size: 10px; color: #00ff4155; margin-top: 3px; }
-  .octet-val { text-align: center; font-size: 15px; color: #00ff41; font-family: 'Fira Code', monospace; font-weight: 500; }
-  .bit-legend { display: flex; gap: 18px; margin: 8px 0; }
-  .bit-legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #00ff41aa; }
-  .bit-legend-swatch { width: 14px; height: 14px; border: 1px solid; }
-  .magic-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 14px 0; }
-  .magic-result-card { border: 1px solid #00ff4133; padding: 12px; background: rgba(0,255,65,0.02); }
-  .magic-result-label { font-size: 10px; color: #00ff4155; letter-spacing: 2px; margin-bottom: 4px; text-transform: uppercase; }
-  .magic-result-val { font-family: 'Fira Code', monospace; font-size: 16px; font-weight: 500; color: #00ff41; }
-  .magic-result-sub { font-size: 11px; color: #00ff41aa; margin-top: 3px; }
-  .block-row { display: flex; gap: 3px; flex-wrap: wrap; margin: 8px 0; }
-  .block-item { border: 1px solid #00ff4133; padding: 3px 8px; font-size: 12px; color: #00ff41aa; }
-  .block-item.current-block { border-color: #00ff41; background: rgba(0,255,65,0.14); color: #00ff41; font-weight: 500; }
-  .step-box { border: 1px solid #00ff4133; background: rgba(0,255,65,0.02); padding: 14px; margin: 10px 0; }
-  .step-line { display: flex; align-items: baseline; gap: 10px; margin: 8px 0; font-size: 13px; }
-  .step-num { font-family: 'Orbitron', sans-serif; font-size: 14px; color: #00ff4144; width: 20px; flex-shrink: 0; }
-  .step-text { color: #00ff41bb; line-height: 1.75; }
-  .step-highlight { color: #00ff41; font-weight: 500; }
-  .step-calc { color: #ffaa00; }
-  .magic-error { border: 1px solid #ff333355; background: rgba(255,51,51,0.04); padding: 10px 14px; font-size: 13px; color: #ff8888; margin: 10px 0; }
-
-  /* EXAM SIM */
-  .exam-header { background: rgba(255,170,0,0.05); border: 1px solid #ffaa0044; padding: 14px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-  .exam-timer { font-family: 'Orbitron', sans-serif; font-size: 28px; color: #ffaa00; text-shadow: 0 0 12px #ffaa0066; }
-  .exam-timer.danger { color: #ff3333; text-shadow: 0 0 12px #ff333366; animation: blink 0.5s step-end infinite; }
-  .exam-question-counter { font-size: 12px; color: #ffaa00aa; }
-  .exam-flag-btn { background: transparent; border: 1px solid #ffaa0055; color: #ffaa0088; font-family: 'Fira Code', monospace; font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.15s; margin-left: auto; }
-  .exam-flag-btn.flagged { border-color: #ffaa00; color: #ffaa00; background: rgba(255,170,0,0.1); }
-  .exam-flag-btn:hover { border-color: #ffaa00; color: #ffaa00; }
-  .exam-nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
-  .exam-q-dot { width: 28px; height: 28px; border: 1px solid #00ff4133; background: transparent; font-size: 11px; color: #00ff4166; cursor: pointer; font-family: 'Fira Code', monospace; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
-  .exam-q-dot:hover { border-color: #00ff41; color: #00ff41; }
-  .exam-q-dot.current { border-color: #00ff41; background: rgba(0,255,65,0.12); color: #00ff41; }
-  .exam-q-dot.answered { background: rgba(0,255,65,0.08); color: #00ff41aa; }
-  .exam-q-dot.flagged { border-color: #ffaa00; color: #ffaa00; }
-  .exam-result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 14px 0; }
-  .exam-domain-card { border: 1px solid #00ff4133; padding: 12px; background: rgba(0,255,65,0.02); }
-  .exam-domain-name { font-size: 11px; color: #00ff41aa; margin-bottom: 6px; }
-  .exam-domain-bar { height: 6px; background: #00ff4122; margin: 4px 0; border-radius: 0; }
-  .exam-domain-fill { height: 100%; transition: width 0.5s; }
-  .exam-domain-score { font-size: 13px; color: #00ff41; font-weight: 500; }
-
-  /* PROGRESS */
-  .progress-page { padding: 4px 0; }
-  .progress-header { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #00ccff; margin-bottom: 16px; letter-spacing: 2px; }
-  .progress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; }
-  .progress-card { border: 1px solid #00ccff33; padding: 14px; background: rgba(0,204,255,0.02); }
-  .progress-card-title { font-size: 11px; color: #00ccff88; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
-  .progress-bar-wrap { background: #00ccff11; height: 8px; margin: 6px 0; }
-  .progress-bar-fill { height: 100%; background: #00ccff; box-shadow: 0 0 6px #00ccff66; transition: width 0.6s; }
-  .progress-bar-fill.warn { background: #ffaa00; box-shadow: 0 0 6px #ffaa0066; }
-  .progress-bar-fill.danger { background: #ff4444; box-shadow: 0 0 6px #ff444466; }
-  .progress-pct { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #00ccff; }
-  .progress-attempts { font-size: 11px; color: #00ccff55; margin-top: 2px; }
-  .weak-spot-list { border: 1px solid #ff444433; background: rgba(255,68,68,0.03); padding: 14px; margin-top: 12px; }
-  .weak-spot-title { font-size: 11px; color: #ff8888; letter-spacing: 2px; margin-bottom: 10px; }
-  .weak-spot-item { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 12px; color: #ff8888aa; border-bottom: 1px solid #ff444422; padding-bottom: 6px; }
-  .weak-spot-pct { font-family: 'Orbitron', sans-serif; font-size: 16px; color: #ff4444; min-width: 40px; }
-  .streak-badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #ffdd0055; background: rgba(255,221,0,0.05); padding: 6px 12px; font-size: 13px; color: #ffdd00aa; }
-  .streak-val { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #ffdd00; }
-
-  @keyframes flicker { 0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.75} 94%{opacity:1} }
-  .flicker { animation: flicker 5s infinite; }
-  @media(max-width:640px){ .teach-cols,.teach-cols-3{grid-template-columns:1fr} .answer-grid{grid-template-columns:1fr} .exam-timer{font-size:22px} }
-`;
+  .btn-info:hover
 
 // ─── QUESTION BANKS ──────────────────────────────────────────────────────────
 
