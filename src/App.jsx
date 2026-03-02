@@ -1,510 +1,331 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
+// ─── STYLES ──────────────────────────────────────────────────────────────────
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Orbitron:wght@700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #0a0a0a; }
   .app { min-height: 100vh; background: #0a0a0a; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 15px; line-height: 1.6; }
-  .scanlines { position: fixed; inset: 0; pointer-events: none; z-index: 100; background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px); }
-  .crt-glow { position: fixed; inset: 0; pointer-events: none; z-index: 99; box-shadow: inset 0 0 120px rgba(0,255,65,0.05); }
-  .header { border-bottom: 1px solid #00ff4133; padding: 14px 24px; display: flex; align-items: center; gap: 16px; background: rgba(0,255,65,0.03); flex-wrap: wrap; }
-  .logo { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #00ff41; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff4166; letter-spacing: 4px; }
-  .header-tag { font-size: 13px; color: #00ff4166; border: 1px solid #00ff4133; padding: 3px 10px; animation: blink 2s step-end infinite; }
+  .scanlines { position: fixed; inset: 0; pointer-events: none; z-index: 100; background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px); }
+  .crt-glow { position: fixed; inset: 0; pointer-events: none; z-index: 99; box-shadow: inset 0 0 120px rgba(0,255,65,0.04); }
+  .header { border-bottom: 1px solid #00ff4133; padding: 12px 20px; display: flex; align-items: center; gap: 14px; background: rgba(0,255,65,0.02); flex-wrap: wrap; }
+  .logo { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #00ff41; text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff4166; letter-spacing: 3px; }
+  .header-tag { font-size: 11px; color: #00ff4166; border: 1px solid #00ff4133; padding: 2px 8px; animation: blink 2s step-end infinite; }
   @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-  .nav { display: flex; gap: 4px; padding: 10px 24px; border-bottom: 1px solid #00ff4122; flex-wrap: wrap; }
-  .nav-btn { background: transparent; border: 1px solid #00ff4144; color: #00ff4199; font-family: 'Fira Code', monospace; font-size: 13px; padding: 7px 16px; cursor: pointer; transition: all 0.15s; }
-  .nav-btn:hover, .nav-btn.active { background: rgba(0,255,65,0.1); border-color: #00ff41; color: #00ff41; text-shadow: 0 0 8px #00ff41; box-shadow: 0 0 12px rgba(0,255,65,0.2); }
-  .main { padding: 22px 24px; max-width: 1100px; margin: 0 auto; }
-  .btn { background: transparent; border: 1px solid #00ff41; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 13px; padding: 8px 20px; cursor: pointer; transition: all 0.15s; }
-  .btn:hover { background: rgba(0,255,65,0.15); text-shadow: 0 0 8px #00ff41; box-shadow: 0 0 16px rgba(0,255,65,0.25); }
+  .nav { display: flex; gap: 3px; padding: 8px 20px; border-bottom: 1px solid #00ff4122; flex-wrap: wrap; }
+  .nav-btn { background: transparent; border: 1px solid #00ff4133; color: #00ff4188; font-family: 'Fira Code', monospace; font-size: 12px; padding: 5px 12px; cursor: pointer; transition: all 0.15s; }
+  .nav-btn:hover, .nav-btn.active { background: rgba(0,255,65,0.1); border-color: #00ff41; color: #00ff41; text-shadow: 0 0 6px #00ff41; }
+  .nav-btn.exam-btn { border-color: #ffaa0066; color: #ffaa00aa; }
+  .nav-btn.exam-btn:hover, .nav-btn.exam-btn.active { background: rgba(255,170,0,0.1); border-color: #ffaa00; color: #ffaa00; }
+  .nav-btn.progress-btn { border-color: #00ccff55; color: #00ccff88; }
+  .nav-btn.progress-btn:hover, .nav-btn.progress-btn.active { background: rgba(0,204,255,0.1); border-color: #00ccff; color: #00ccff; }
+  .main { padding: 18px 20px; max-width: 1140px; margin: 0 auto; }
+  .btn { background: transparent; border: 1px solid #00ff41; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 13px; padding: 7px 18px; cursor: pointer; transition: all 0.15s; }
+  .btn:hover { background: rgba(0,255,65,0.12); text-shadow: 0 0 8px #00ff41; box-shadow: 0 0 14px rgba(0,255,65,0.2); }
   .btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .btn-danger { border-color: #ff3333; color: #ff3333; }
-  .btn-danger:hover { background: rgba(255,51,51,0.15); }
+  .btn-danger:hover { background: rgba(255,51,51,0.12); }
   .btn-warn { border-color: #ffaa00; color: #ffaa00; }
+  .btn-warn:hover { background: rgba(255,170,0,0.1); }
   .btn-info { border-color: #00ccff; color: #00ccff; }
   .btn-info:hover { background: rgba(0,204,255,0.1); }
+  .btn-gold { border-color: #ffdd00; color: #ffdd00; }
+  .btn-gold:hover { background: rgba(255,221,0,0.1); }
 
-  .mod-tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 1px solid #00ff4133; flex-wrap: wrap; }
-  .mod-tab { background: transparent; border: 1px solid #00ff4122; border-bottom: none; color: #00ff4177; font-family: 'Fira Code', monospace; font-size: 13px; padding: 8px 18px; cursor: pointer; transition: all 0.15s; margin-right: 4px; }
-  .mod-tab:hover { color: #00ff41; border-color: #00ff4166; }
-  .mod-tab.active { background: rgba(0,255,65,0.06); border-color: #00ff41; color: #00ff41; text-shadow: 0 0 6px #00ff4166; }
-  .mod-content { border: 1px solid #00ff4133; border-top: none; padding: 22px; background: rgba(0,255,65,0.01); }
+  .mod-tabs { display: flex; gap: 0; border-bottom: 1px solid #00ff4133; flex-wrap: wrap; }
+  .mod-tab { background: transparent; border: 1px solid #00ff4122; border-bottom: none; color: #00ff4166; font-family: 'Fira Code', monospace; font-size: 12px; padding: 7px 16px; cursor: pointer; transition: all 0.15s; margin-right: 3px; }
+  .mod-tab:hover { color: #00ff41; border-color: #00ff4155; }
+  .mod-tab.active { background: rgba(0,255,65,0.06); border-color: #00ff41; color: #00ff41; }
+  .mod-content { border: 1px solid #00ff4133; border-top: none; padding: 20px; background: rgba(0,255,65,0.01); }
 
-  .home-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 8px; }
-  .module-card { border: 1px solid #00ff4133; padding: 20px; cursor: pointer; transition: all 0.2s; background: rgba(0,255,65,0.02); position: relative; overflow: hidden; }
-  .module-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: #00ff41; transform: scaleX(0); transition: transform 0.2s; }
-  .module-card:hover { border-color: #00ff41; background: rgba(0,255,65,0.06); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,255,65,0.1); }
-  .module-card:hover::after { transform: scaleX(1); }
-  .module-icon { font-size: 30px; margin-bottom: 10px; }
-  .module-title { font-family: 'Orbitron', sans-serif; font-size: 14px; color: #00ff41; text-shadow: 0 0 8px #00ff4166; margin-bottom: 7px; letter-spacing: 1px; }
-  .module-desc { font-size: 13px; color: #00ff41aa; line-height: 1.65; }
-  .module-tag { margin-top: 12px; font-size: 11px; color: #00ff4166; border: 1px solid #00ff4133; display: inline-block; padding: 3px 9px; }
+  /* HOME */
+  .home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 10px; }
+  .module-card { border: 1px solid #00ff4133; padding: 18px; cursor: pointer; transition: all 0.2s; background: rgba(0,255,65,0.02); position: relative; overflow: hidden; }
+  .module-card::after { content:''; position:absolute; bottom:0; left:0; right:0; height:2px; background:#00ff41; transform:scaleX(0); transition:transform 0.2s; }
+  .module-card:hover { border-color:#00ff41; background:rgba(0,255,65,0.05); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,255,65,0.1); }
+  .module-card:hover::after { transform:scaleX(1); }
+  .module-card.new-card { border-color: #00ccff44; }
+  .module-card.new-card::after { background: #00ccff; }
+  .module-card.new-card:hover { border-color: #00ccff; box-shadow: 0 6px 20px rgba(0,204,255,0.1); }
+  .module-icon { font-size: 26px; margin-bottom: 8px; }
+  .module-title { font-family: 'Orbitron', sans-serif; font-size: 13px; color: #00ff41; margin-bottom: 6px; letter-spacing: 1px; }
+  .module-card.new-card .module-title { color: #00ccff; }
+  .module-desc { font-size: 12px; color: #00ff41aa; line-height: 1.6; }
+  .module-tag { margin-top: 10px; font-size: 10px; color: #00ff4155; border: 1px solid #00ff4133; display: inline-block; padding: 2px 7px; }
+  .new-badge { font-size: 10px; color: #00ccff; border: 1px solid #00ccff66; display: inline-block; padding: 1px 6px; margin-left: 6px; }
 
-  .teach-h1 { font-family: 'Orbitron', sans-serif; font-size: 16px; color: #00ff41; text-shadow: 0 0 8px #00ff4166; letter-spacing: 2px; margin-bottom: 12px; }
-  .teach-h2 { font-size: 12px; color: #00ff41bb; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; border-left: 3px solid #00ff41; padding-left: 10px; margin-top: 20px; font-weight: 500; }
-  .teach-p { font-size: 14px; color: #00ff41cc; line-height: 1.85; margin-bottom: 12px; }
-  .teach-code { font-family: 'Fira Code', monospace; background: rgba(0,255,65,0.07); border: 1px solid #00ff4133; padding: 12px 16px; font-size: 13px; color: #00ff41dd; line-height: 1.85; margin: 12px 0; white-space: pre; overflow-x: auto; }
-  .teach-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
-  .teach-table th { border: 1px solid #00ff4144; padding: 9px 12px; color: #00ff41bb; text-align: left; font-weight: 500; background: rgba(0,255,65,0.05); }
-  .teach-table td { border: 1px solid #00ff4122; padding: 9px 12px; color: #00ff41bb; }
-  .teach-table tr:hover td { background: rgba(0,255,65,0.04); color: #00ff41; }
-  .teach-tip { border: 1px solid #ffaa0055; background: rgba(255,170,0,0.05); padding: 12px 16px; font-size: 13px; color: #ffaa00cc; line-height: 1.8; margin: 12px 0; }
-  .teach-tip::before { content: '⚡ EXAM TIP: '; color: #ffaa00; font-weight: 500; }
-  .teach-info { border: 1px solid #00ccff44; background: rgba(0,204,255,0.04); padding: 12px 16px; font-size: 13px; color: #00ccffcc; line-height: 1.8; margin: 12px 0; }
-  .teach-info::before { content: 'ℹ KEY CONCEPT: '; color: #00ccff; font-weight: 500; }
-  .teach-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0; }
-  .teach-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 12px 0; }
-  .teach-card { border: 1px solid #00ff4133; padding: 14px; background: rgba(0,255,65,0.02); }
-  .teach-card-title { font-size: 12px; color: #00ff41; letter-spacing: 1px; margin-bottom: 8px; text-transform: uppercase; font-weight: 500; }
-  .teach-card-body { font-size: 13px; color: #00ff41aa; line-height: 1.75; }
-  .cheatsheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin: 12px 0; }
-  .cheatsheet-item { border: 1px solid #00ff4133; padding: 10px 12px; background: rgba(0,255,65,0.03); }
-  .cheatsheet-key { font-size: 16px; color: #00ff41; text-shadow: 0 0 6px #00ff4166; font-weight: 500; }
-  .cheatsheet-val { font-size: 12px; color: #00ff41aa; margin-top: 3px; }
+  /* TEACH */
   .scroll-area { max-height: 560px; overflow-y: auto; padding-right: 6px; }
   .scroll-area::-webkit-scrollbar { width: 4px; }
   .scroll-area::-webkit-scrollbar-thumb { background: #00ff4133; }
+  .teach-h1 { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #00ff41; letter-spacing: 2px; margin-bottom: 12px; }
+  .teach-h2 { font-size: 11px; color: #00ff41bb; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; border-left: 3px solid #00ff41; padding-left: 10px; margin-top: 18px; font-weight: 500; }
+  .teach-p { font-size: 13px; color: #00ff41cc; line-height: 1.85; margin-bottom: 10px; }
+  .teach-code { font-family: 'Fira Code', monospace; background: rgba(0,255,65,0.06); border: 1px solid #00ff4133; padding: 12px 14px; font-size: 12px; color: #00ff41dd; line-height: 1.85; margin: 10px 0; white-space: pre; overflow-x: auto; }
+  .teach-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+  .teach-table th { border: 1px solid #00ff4144; padding: 8px 10px; color: #00ff41bb; text-align: left; font-weight: 500; background: rgba(0,255,65,0.04); }
+  .teach-table td { border: 1px solid #00ff4122; padding: 8px 10px; color: #00ff41bb; }
+  .teach-table tr:hover td { background: rgba(0,255,65,0.03); color: #00ff41; }
+  .teach-tip { border: 1px solid #ffaa0055; background: rgba(255,170,0,0.04); padding: 10px 14px; font-size: 13px; color: #ffaa00cc; line-height: 1.8; margin: 10px 0; }
+  .teach-tip::before { content: '⚡ EXAM TIP: '; color: #ffaa00; font-weight: 500; }
+  .teach-info { border: 1px solid #00ccff44; background: rgba(0,204,255,0.03); padding: 10px 14px; font-size: 13px; color: #00ccffcc; line-height: 1.8; margin: 10px 0; }
+  .teach-info::before { content: 'ℹ KEY CONCEPT: '; color: #00ccff; font-weight: 500; }
+  .teach-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+  .teach-cols-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .teach-card { border: 1px solid #00ff4133; padding: 12px; background: rgba(0,255,65,0.02); }
+  .teach-card-title { font-size: 11px; color: #00ff41; letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; font-weight: 500; }
+  .teach-card-body { font-size: 12px; color: #00ff41aa; line-height: 1.75; }
+  .cheatsheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 7px; margin: 10px 0; }
+  .cheatsheet-item { border: 1px solid #00ff4133; padding: 8px 10px; background: rgba(0,255,65,0.03); }
+  .cheatsheet-key { font-size: 15px; color: #00ff41; font-weight: 500; }
+  .cheatsheet-val { font-size: 11px; color: #00ff41aa; margin-top: 2px; }
 
-  .subnet-display { font-family: 'Fira Code', monospace; font-size: 28px; font-weight: 500; color: #00ff41; text-shadow: 0 0 15px #00ff41; letter-spacing: 3px; text-align: center; padding: 18px; border: 1px solid #00ff4133; background: rgba(0,255,65,0.03); margin: 14px 0; }
-  .answer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
-  .answer-btn { background: transparent; border: 1px solid #00ff4144; color: #00ff41cc; font-family: 'Fira Code', monospace; font-size: 14px; padding: 12px 14px; cursor: pointer; transition: all 0.15s; text-align: left; line-height: 1.4; }
-  .answer-btn:hover { background: rgba(0,255,65,0.1); border-color: #00ff41; color: #00ff41; }
-  .answer-btn.correct { background: rgba(0,255,65,0.2); border-color: #00ff41; color: #00ff41; }
-  .answer-btn.wrong { background: rgba(255,51,51,0.15); border-color: #ff3333; color: #ff6666; }
-  .feedback { margin-top: 12px; padding: 14px; font-size: 14px; line-height: 1.8; }
-  .feedback.ok { border: 1px solid #00ff4166; color: #00ff41cc; background: rgba(0,255,65,0.05); }
-  .feedback.bad { border: 1px solid #ff333366; color: #ff8888; background: rgba(255,51,51,0.05); }
-  .progress-bar { height: 3px; background: #00ff4122; margin: 12px 0; }
-  .progress-fill { height: 100%; background: #00ff41; box-shadow: 0 0 8px #00ff41; transition: width 0.3s; }
-  .stat-row { display: flex; gap: 10px; margin: 12px 0; }
-  .stat { border: 1px solid #00ff4133; padding: 8px 14px; text-align: center; flex: 1; background: rgba(0,255,65,0.02); }
-  .stat-val { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #00ff41; text-shadow: 0 0 10px #00ff4166; }
-  .stat-label { font-size: 11px; color: #00ff4166; margin-top: 3px; }
-  .result-screen { text-align: center; padding: 40px 20px; }
-  .result-score { font-family: 'Orbitron', sans-serif; font-size: 56px; color: #00ff41; text-shadow: 0 0 30px #00ff41, 0 0 60px #00ff4166; line-height: 1; }
+  /* QUIZ */
+  .subnet-display { font-family: 'Fira Code', monospace; font-size: 26px; font-weight: 500; color: #00ff41; text-shadow: 0 0 12px #00ff41; letter-spacing: 3px; text-align: center; padding: 16px; border: 1px solid #00ff4133; background: rgba(0,255,65,0.03); margin: 12px 0; }
+  .answer-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+  .answer-btn { background: transparent; border: 1px solid #00ff4144; color: #00ff41cc; font-family: 'Fira Code', monospace; font-size: 13px; padding: 11px 13px; cursor: pointer; transition: all 0.15s; text-align: left; line-height: 1.45; }
+  .answer-btn:hover { background: rgba(0,255,65,0.08); border-color: #00ff41; }
+  .answer-btn.correct { background: rgba(0,255,65,0.18); border-color: #00ff41; color: #00ff41; }
+  .answer-btn.wrong { background: rgba(255,51,51,0.12); border-color: #ff3333; color: #ff6666; }
+  .feedback { margin-top: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.8; }
+  .feedback.ok { border: 1px solid #00ff4166; color: #00ff41cc; background: rgba(0,255,65,0.04); }
+  .feedback.bad { border: 1px solid #ff333355; color: #ff8888; background: rgba(255,51,51,0.04); }
+  .progress-bar { height: 3px; background: #00ff4122; margin: 10px 0; }
+  .progress-fill { height: 100%; background: #00ff41; box-shadow: 0 0 6px #00ff41; transition: width 0.3s; }
+  .stat-row { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
+  .stat { border: 1px solid #00ff4133; padding: 7px 12px; text-align: center; flex: 1; min-width: 70px; background: rgba(0,255,65,0.02); }
+  .stat-val { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #00ff41; }
+  .stat-label { font-size: 10px; color: #00ff4155; margin-top: 2px; }
+  .result-screen { text-align: center; padding: 36px 20px; }
+  .result-score { font-family: 'Orbitron', sans-serif; font-size: 52px; color: #00ff41; text-shadow: 0 0 24px #00ff41, 0 0 48px #00ff4166; line-height: 1; }
 
-  .topo-canvas { border: 1px solid #00ff4133; background: rgba(0,0,0,0.5); position: relative; height: 360px; overflow: hidden; }
-  .device-node { position: absolute; width: 70px; text-align: center; cursor: grab; user-select: none; }
+  /* TOPO */
+  .topo-canvas { border: 1px solid #00ff4133; background: rgba(0,0,0,0.4); position: relative; height: 360px; overflow: hidden; }
+  .device-node { position: absolute; width: 68px; text-align: center; cursor: grab; user-select: none; }
   .device-node:active { cursor: grabbing; }
-  .device-icon { width: 46px; height: 46px; border: 2px solid #00ff4166; background: rgba(0,255,65,0.08); display: flex; align-items: center; justify-content: center; font-size: 20px; margin: 0 auto 4px; transition: all 0.15s; }
-  .device-node:hover .device-icon, .device-node.selected .device-icon { border-color: #00ff41; background: rgba(0,255,65,0.2); box-shadow: 0 0 12px rgba(0,255,65,0.4); }
-  .device-label { font-size: 11px; color: #00ff41aa; }
-  .topo-device-pick { border: 1px solid #00ff4133; padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; color: #00ff41aa; transition: all 0.15s; background: transparent; font-family: 'Fira Code', monospace; width: 100%; text-align: left; margin-bottom: 4px; }
-  .topo-device-pick:hover { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.06); }
+  .device-icon { width: 44px; height: 44px; border: 2px solid #00ff4166; background: rgba(0,255,65,0.07); display: flex; align-items: center; justify-content: center; font-size: 19px; margin: 0 auto 3px; transition: all 0.15s; }
+  .device-node:hover .device-icon, .device-node.selected .device-icon { border-color: #00ff41; background: rgba(0,255,65,0.18); box-shadow: 0 0 10px rgba(0,255,65,0.35); }
+  .device-label { font-size: 10px; color: #00ff41aa; }
+  .topo-device-pick { border: 1px solid #00ff4133; padding: 7px; cursor: pointer; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #00ff41aa; transition: all 0.15s; background: transparent; font-family: 'Fira Code', monospace; width: 100%; text-align: left; margin-bottom: 3px; }
+  .topo-device-pick:hover { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.05); }
   .connection-svg { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
 
-  .drag-zone { min-height: 70px; border: 1px dashed #00ff4144; padding: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; transition: all 0.2s; background: rgba(0,255,65,0.01); }
-  .drag-zone.over { border-color: #00ff41; background: rgba(0,255,65,0.06); }
-  .drag-chip { border: 1px solid #00ff4166; padding: 6px 12px; font-size: 13px; cursor: grab; background: rgba(0,255,65,0.08); color: #00ff41cc; user-select: none; transition: all 0.15s; font-family: 'Fira Code', monospace; }
-  .drag-chip:hover { border-color: #00ff41; color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.3); }
+  /* DRAG */
+  .drag-zone { min-height: 66px; border: 1px dashed #00ff4144; padding: 10px; display: flex; flex-wrap: wrap; gap: 7px; align-items: flex-start; transition: all 0.2s; }
+  .drag-zone.over { border-color: #00ff41; background: rgba(0,255,65,0.05); }
+  .drag-chip { border: 1px solid #00ff4166; padding: 5px 10px; font-size: 12px; cursor: grab; background: rgba(0,255,65,0.07); color: #00ff41cc; user-select: none; transition: all 0.15s; font-family: 'Fira Code', monospace; }
+  .drag-chip:hover { border-color: #00ff41; color: #00ff41; box-shadow: 0 0 6px rgba(0,255,65,0.25); }
 
-  .routing-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
-  .routing-table th { border: 1px solid #00ff4144; padding: 9px 12px; color: #00ff41bb; text-align: left; font-weight: 500; background: rgba(0,255,65,0.05); }
-  .routing-table td { border: 1px solid #00ff4122; padding: 9px 12px; color: #00ff41bb; }
-  .routing-table tr:hover td { background: rgba(0,255,65,0.04); color: #00ff41; }
-  .highlighted-row td { color: #00ff41 !important; background: rgba(0,255,65,0.08) !important; }
-  .terminal-line { font-size: 14px; color: #00ff41aa; line-height: 1.9; }
-  .terminal-line .prompt { color: #00ff41; margin-right: 10px; }
-  @keyframes flicker { 0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.7} 94%{opacity:1} }
-  .flicker { animation: flicker 5s infinite; }
-  @media(max-width:600px){ .teach-cols,.teach-cols-3{grid-template-columns:1fr} .answer-grid{grid-template-columns:1fr} }
+  /* ROUTING */
+  .routing-table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 10px 0; }
+  .routing-table th { border: 1px solid #00ff4144; padding: 8px 10px; color: #00ff41bb; text-align: left; font-weight: 500; background: rgba(0,255,65,0.04); }
+  .routing-table td { border: 1px solid #00ff4122; padding: 8px 10px; color: #00ff41bb; }
+  .routing-table tr:hover td { background: rgba(0,255,65,0.03); }
+  .highlighted-row td { color: #00ff41 !important; background: rgba(0,255,65,0.07) !important; }
+  .terminal-line { font-size: 13px; color: #00ff41aa; line-height: 1.9; }
+  .terminal-line .prompt { color: #00ff41; margin-right: 8px; }
 
-  /* ── MAGIC NUMBER CALCULATOR ── */
-  .magic-input-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
-  .magic-input { background: rgba(0,255,65,0.05); border: 1px solid #00ff4166; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 17px; padding: 9px 16px; outline: none; width: 230px; letter-spacing: 1px; }
-  .magic-input:focus { border-color: #00ff41; box-shadow: 0 0 10px rgba(0,255,65,0.2); }
-  .magic-input-slash { font-family: 'Fira Code', monospace; font-size: 22px; color: #00ff4166; }
-  .magic-cidr-input { background: rgba(0,255,65,0.05); border: 1px solid #00ff4166; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 17px; padding: 9px 10px; outline: none; width: 68px; text-align: center; }
-  .magic-cidr-input:focus { border-color: #00ff41; box-shadow: 0 0 10px rgba(0,255,65,0.2); }
-
-  .bit-grid { display: flex; gap: 3px; flex-wrap: nowrap; margin: 12px 0; overflow-x: auto; padding-bottom: 4px; }
-  .bit-group { display: flex; gap: 2px; position: relative; }
-  .bit-group + .bit-group { margin-left: 8px; }
-  .bit-cell { width: 32px; height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid; font-family: 'Fira Code', monospace; font-size: 14px; font-weight: 500; transition: all 0.2s; position: relative; flex-shrink: 0; }
-  .bit-cell.net { border-color: #00ff4166; background: rgba(0,255,65,0.15); color: #00ff41; }
-  .bit-cell.host { border-color: #00ccff44; background: rgba(0,204,255,0.08); color: #00ccff; }
-  .bit-cell .bit-pos { font-size: 9px; opacity: 0.55; margin-top: 2px; }
-
-  .octet-label { text-align: center; font-size: 11px; color: #00ff4166; letter-spacing: 1px; margin-top: 4px; }
-  .octet-val { text-align: center; font-size: 16px; color: #00ff41; font-family: 'Fira Code', monospace; font-weight: 500; }
-  .bit-legend { display: flex; gap: 20px; margin: 10px 0; }
-  .bit-legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #00ff41aa; }
-  .bit-legend-swatch { width: 16px; height: 16px; border: 1px solid; }
-
-  .magic-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; margin: 16px 0; }
-  .magic-result-card { border: 1px solid #00ff4133; padding: 14px; background: rgba(0,255,65,0.02); }
-  .magic-result-label { font-size: 11px; color: #00ff4166; letter-spacing: 2px; margin-bottom: 6px; text-transform: uppercase; }
-  .magic-result-val { font-family: 'Fira Code', monospace; font-size: 17px; font-weight: 500; color: #00ff41; text-shadow: 0 0 8px #00ff4166; }
-  .magic-result-sub { font-size: 12px; color: #00ff41aa; margin-top: 4px; }
-
-  .block-row { display: flex; gap: 4px; flex-wrap: wrap; margin: 10px 0; }
-  .block-item { border: 1px solid #00ff4133; padding: 4px 10px; font-size: 13px; color: #00ff41aa; background: rgba(0,255,65,0.03); transition: all 0.15s; }
-  .block-item.current-block { border-color: #00ff41; background: rgba(0,255,65,0.15); color: #00ff41; text-shadow: 0 0 6px #00ff4166; font-weight: 500; }
-
-  .step-box { border: 1px solid #00ff4133; background: rgba(0,255,65,0.02); padding: 16px; margin: 12px 0; }
-  .step-box-title { font-size: 11px; color: #00ff4166; letter-spacing: 3px; margin-bottom: 12px; text-transform: uppercase; }
-  .step-line { display: flex; align-items: baseline; gap: 12px; margin: 8px 0; font-size: 14px; }
-  .step-num { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #00ff4155; width: 22px; flex-shrink: 0; }
+  /* MAGIC CALC */
+  .magic-input-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .magic-input { background: rgba(0,255,65,0.04); border: 1px solid #00ff4166; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 16px; padding: 8px 14px; outline: none; width: 220px; }
+  .magic-input:focus { border-color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.18); }
+  .magic-cidr-input { background: rgba(0,255,65,0.04); border: 1px solid #00ff4166; color: #00ff41; font-family: 'Fira Code', monospace; font-size: 16px; padding: 8px 10px; outline: none; width: 64px; text-align: center; }
+  .magic-cidr-input:focus { border-color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.18); }
+  .bit-grid { display: flex; gap: 3px; flex-wrap: nowrap; margin: 10px 0; overflow-x: auto; padding-bottom: 4px; }
+  .bit-group { display: flex; gap: 2px; }
+  .bit-group + .bit-group { margin-left: 7px; }
+  .bit-cell { width: 30px; height: 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid; font-family: 'Fira Code', monospace; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+  .bit-cell.net { border-color: #00ff4166; background: rgba(0,255,65,0.14); color: #00ff41; }
+  .bit-cell.host { border-color: #00ccff44; background: rgba(0,204,255,0.07); color: #00ccff; }
+  .bit-cell .bit-pos { font-size: 8px; opacity: 0.5; margin-top: 1px; }
+  .octet-label { text-align: center; font-size: 10px; color: #00ff4155; margin-top: 3px; }
+  .octet-val { text-align: center; font-size: 15px; color: #00ff41; font-family: 'Fira Code', monospace; font-weight: 500; }
+  .bit-legend { display: flex; gap: 18px; margin: 8px 0; }
+  .bit-legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #00ff41aa; }
+  .bit-legend-swatch { width: 14px; height: 14px; border: 1px solid; }
+  .magic-results { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin: 14px 0; }
+  .magic-result-card { border: 1px solid #00ff4133; padding: 12px; background: rgba(0,255,65,0.02); }
+  .magic-result-label { font-size: 10px; color: #00ff4155; letter-spacing: 2px; margin-bottom: 4px; text-transform: uppercase; }
+  .magic-result-val { font-family: 'Fira Code', monospace; font-size: 16px; font-weight: 500; color: #00ff41; }
+  .magic-result-sub { font-size: 11px; color: #00ff41aa; margin-top: 3px; }
+  .block-row { display: flex; gap: 3px; flex-wrap: wrap; margin: 8px 0; }
+  .block-item { border: 1px solid #00ff4133; padding: 3px 8px; font-size: 12px; color: #00ff41aa; }
+  .block-item.current-block { border-color: #00ff41; background: rgba(0,255,65,0.14); color: #00ff41; font-weight: 500; }
+  .step-box { border: 1px solid #00ff4133; background: rgba(0,255,65,0.02); padding: 14px; margin: 10px 0; }
+  .step-line { display: flex; align-items: baseline; gap: 10px; margin: 8px 0; font-size: 13px; }
+  .step-num { font-family: 'Orbitron', sans-serif; font-size: 14px; color: #00ff4144; width: 20px; flex-shrink: 0; }
   .step-text { color: #00ff41bb; line-height: 1.75; }
   .step-highlight { color: #00ff41; font-weight: 500; }
   .step-calc { color: #ffaa00; }
+  .magic-error { border: 1px solid #ff333355; background: rgba(255,51,51,0.04); padding: 10px 14px; font-size: 13px; color: #ff8888; margin: 10px 0; }
 
-  .magic-error { border: 1px solid #ff333366; background: rgba(255,51,51,0.05); padding: 12px 16px; font-size: 14px; color: #ff8888; margin: 12px 0; }
+  /* EXAM SIM */
+  .exam-header { background: rgba(255,170,0,0.05); border: 1px solid #ffaa0044; padding: 14px 18px; margin-bottom: 14px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .exam-timer { font-family: 'Orbitron', sans-serif; font-size: 28px; color: #ffaa00; text-shadow: 0 0 12px #ffaa0066; }
+  .exam-timer.danger { color: #ff3333; text-shadow: 0 0 12px #ff333366; animation: blink 0.5s step-end infinite; }
+  .exam-question-counter { font-size: 12px; color: #ffaa00aa; }
+  .exam-flag-btn { background: transparent; border: 1px solid #ffaa0055; color: #ffaa0088; font-family: 'Fira Code', monospace; font-size: 11px; padding: 4px 10px; cursor: pointer; transition: all 0.15s; margin-left: auto; }
+  .exam-flag-btn.flagged { border-color: #ffaa00; color: #ffaa00; background: rgba(255,170,0,0.1); }
+  .exam-flag-btn:hover { border-color: #ffaa00; color: #ffaa00; }
+  .exam-nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 14px 0; }
+  .exam-q-dot { width: 28px; height: 28px; border: 1px solid #00ff4133; background: transparent; font-size: 11px; color: #00ff4166; cursor: pointer; font-family: 'Fira Code', monospace; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .exam-q-dot:hover { border-color: #00ff41; color: #00ff41; }
+  .exam-q-dot.current { border-color: #00ff41; background: rgba(0,255,65,0.12); color: #00ff41; }
+  .exam-q-dot.answered { background: rgba(0,255,65,0.08); color: #00ff41aa; }
+  .exam-q-dot.flagged { border-color: #ffaa00; color: #ffaa00; }
+  .exam-result-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin: 14px 0; }
+  .exam-domain-card { border: 1px solid #00ff4133; padding: 12px; background: rgba(0,255,65,0.02); }
+  .exam-domain-name { font-size: 11px; color: #00ff41aa; margin-bottom: 6px; }
+  .exam-domain-bar { height: 6px; background: #00ff4122; margin: 4px 0; border-radius: 0; }
+  .exam-domain-fill { height: 100%; transition: width 0.5s; }
+  .exam-domain-score { font-size: 13px; color: #00ff41; font-weight: 500; }
+
+  /* PROGRESS */
+  .progress-page { padding: 4px 0; }
+  .progress-header { font-family: 'Orbitron', sans-serif; font-size: 15px; color: #00ccff; margin-bottom: 16px; letter-spacing: 2px; }
+  .progress-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .progress-card { border: 1px solid #00ccff33; padding: 14px; background: rgba(0,204,255,0.02); }
+  .progress-card-title { font-size: 11px; color: #00ccff88; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .progress-bar-wrap { background: #00ccff11; height: 8px; margin: 6px 0; }
+  .progress-bar-fill { height: 100%; background: #00ccff; box-shadow: 0 0 6px #00ccff66; transition: width 0.6s; }
+  .progress-bar-fill.warn { background: #ffaa00; box-shadow: 0 0 6px #ffaa0066; }
+  .progress-bar-fill.danger { background: #ff4444; box-shadow: 0 0 6px #ff444466; }
+  .progress-pct { font-family: 'Orbitron', sans-serif; font-size: 22px; color: #00ccff; }
+  .progress-attempts { font-size: 11px; color: #00ccff55; margin-top: 2px; }
+  .weak-spot-list { border: 1px solid #ff444433; background: rgba(255,68,68,0.03); padding: 14px; margin-top: 12px; }
+  .weak-spot-title { font-size: 11px; color: #ff8888; letter-spacing: 2px; margin-bottom: 10px; }
+  .weak-spot-item { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 12px; color: #ff8888aa; border-bottom: 1px solid #ff444422; padding-bottom: 6px; }
+  .weak-spot-pct { font-family: 'Orbitron', sans-serif; font-size: 16px; color: #ff4444; min-width: 40px; }
+  .streak-badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #ffdd0055; background: rgba(255,221,0,0.05); padding: 6px 12px; font-size: 13px; color: #ffdd00aa; }
+  .streak-val { font-family: 'Orbitron', sans-serif; font-size: 20px; color: #ffdd00; }
+
+  @keyframes flicker { 0%,100%{opacity:1} 92%{opacity:1} 93%{opacity:0.75} 94%{opacity:1} }
+  .flicker { animation: flicker 5s infinite; }
+  @media(max-width:640px){ .teach-cols,.teach-cols-3{grid-template-columns:1fr} .answer-grid{grid-template-columns:1fr} .exam-timer{font-size:22px} }
 `;
 
+// ─── QUESTION BANKS ──────────────────────────────────────────────────────────
 
-// ── TEACHING CONTENT ─────────────────────────────────────────────────────────
+const ALL_QUESTIONS = {
 
-function SubnetLearn() {
-  return (
-    <div className="scroll-area">
-      <div className="teach-h1">// SUBNETTING & IP ADDRESSING</div>
-      <div className="teach-p">Subnetting divides a network into smaller segments. Each subnet shares the same network bits but has a unique host range. You borrow bits from the host portion to create subnets, reducing waste and improving security.</div>
-      <div className="teach-info">An IP address is 32 bits written as 4 octets (e.g. 192.168.1.0). The subnet mask tells the router which bits are "network" and which are "host".</div>
+  subnetting: [
+    {id:"sn01",domain:"Subnetting",q:"How many usable hosts does a /24 subnet support?",choices:["254","256","255","252"],answer:0,explain:"/24 = 2^8 - 2 = 254. Always subtract 2 (network + broadcast)."},
+    {id:"sn02",domain:"Subnetting",q:"What is the subnet mask for /26?",choices:["255.255.255.192","255.255.255.128","255.255.255.224","255.255.255.240"],answer:0,explain:"/26 borrows 2 bits from the last octet: 128+64=192 → 255.255.255.192."},
+    {id:"sn03",domain:"Subnetting",q:"172.16.5.130/26 — what is the network address?",choices:["172.16.5.128","172.16.5.0","172.16.5.64","172.16.5.192"],answer:0,explain:"Block size = 256-192=64. Blocks: 0,64,128,192. 130 falls in 128 block. Network = .128."},
+    {id:"sn04",domain:"Subnetting",q:"192.168.1.200/28 — what is the broadcast address?",choices:["192.168.1.207","192.168.1.255","192.168.1.223","192.168.1.215"],answer:0,explain:"Block=16. 200 is in the 192 block. Broadcast=192+16-1=207."},
+    {id:"sn05",domain:"Subnetting",q:"How many usable hosts per subnet does /27 provide?",choices:["30","32","62","14"],answer:0,explain:"2^5 - 2 = 30 usable hosts per /27 subnet."},
+    {id:"sn06",domain:"Subnetting",q:"172.31.0.0 — which private range does this belong to?",choices:["172.16.0.0/12","10.0.0.0/8","192.168.0.0/16","169.254.0.0/16"],answer:0,explain:"172.16.0.0-172.31.255.255 = Class B private range = 172.16.0.0/12."},
+    {id:"sn07",domain:"Subnetting",q:"What is the magic number (block size) for /28?",choices:["16","32","64","8"],answer:0,explain:"256 - 240 (mask value) = 16. /28 = 255.255.255.240."},
+    {id:"sn08",domain:"Subnetting",q:"How many /27 subnets can be created from a /24?",choices:["8","4","16","32"],answer:0,explain:"Borrowing 3 bits: 2^3 = 8 subnets."},
+    {id:"sn09",domain:"Subnetting",q:"What does VLSM stand for?",choices:["Variable Length Subnet Masking","Variable LAN Subnet Method","Virtual Layer Subnet Mapping","Variable Link Subnet Mode"],answer:0,explain:"VLSM = Variable Length Subnet Masking. Allows different-sized subnets on the same network."},
+    {id:"sn10",domain:"Subnetting",q:"169.254.10.5 is an example of which address type?",choices:["APIPA","Loopback","Multicast","Private Class B"],answer:0,explain:"169.254.0.0/16 is APIPA (Automatic Private IP Addressing) — assigned when DHCP fails."},
+  ],
 
-      <div className="teach-h2">CIDR CHEAT SHEET</div>
-      <div className="cheatsheet-grid">
-        {[["/30","255.255.255.252","4 total","2 hosts"],["/29","255.255.255.248","8 total","6 hosts"],["/28","255.255.255.240","16 total","14 hosts"],["/27","255.255.255.224","32 total","30 hosts"],["/26","255.255.255.192","64 total","62 hosts"],["/25","255.255.255.128","128 total","126 hosts"],["/24","255.255.255.0","256 total","254 hosts"],["/23","255.255.254.0","512 total","510 hosts"],["/22","255.255.252.0","1024 total","1022 hosts"],["/16","255.255.0.0","65536 total","65534 hosts"],["/8","255.0.0.0","16M total","~16M hosts"]].map(([cidr,mask,total,hosts]) => (
-          <div className="cheatsheet-item" key={cidr}>
-            <div className="cheatsheet-key">{cidr}</div>
-            <div className="cheatsheet-val">{mask}</div>
-            <div className="cheatsheet-val" style={{color:"#00ff41"}}>{hosts}</div>
-            <div className="cheatsheet-val">{total}</div>
-          </div>
-        ))}
-      </div>
+  routing: [
+    {id:"rt01",domain:"Routing",q:"What is the Administrative Distance of OSPF?",choices:["110","90","120","1"],answer:0,explain:"OSPF AD = 110. Must-memorize: Connected=0, Static=1, EIGRP=90, OSPF=110, RIP=120."},
+    {id:"rt02",domain:"Routing",q:"Which route selection criterion takes highest priority?",choices:["Longest prefix match","Administrative Distance","Metric","Route age"],answer:0,explain:"Longest prefix match ALWAYS wins first. /29 beats /24 beats /0 regardless of AD or metric."},
+    {id:"rt03",domain:"Routing",q:"What is the AD of a directly connected route?",choices:["0","1","5","10"],answer:0,explain:"Connected interfaces have AD=0 — most trusted source possible."},
+    {id:"rt04",domain:"Routing",q:"OSPF uses which algorithm to calculate best paths?",choices:["Dijkstra SPF","Bellman-Ford","DUAL","Distance Vector"],answer:0,explain:"OSPF uses Dijkstra's Shortest Path First (SPF) algorithm. It's a link-state protocol."},
+    {id:"rt05",domain:"Routing",q:"What metric does RIP use?",choices:["Hop count","Bandwidth","Cost","Delay"],answer:0,explain:"RIP uses hop count (max 15). 16 = unreachable. This limits RIP to small networks."},
+    {id:"rt06",domain:"Routing",q:"Which command displays the routing table on a Cisco router?",choices:["show ip route","show route table","display ip route","show routing"],answer:0,explain:"'show ip route' is the standard IOS command to view the IPv4 routing table."},
+    {id:"rt07",domain:"Routing",q:"What is a floating static route?",choices:["A backup static route with higher AD than dynamic routes","A route that changes based on traffic","A route learned via OSPF","A default route only"],answer:0,explain:"A floating static route has a manually set higher AD (e.g. 150) so it only activates when the primary dynamic route is lost."},
+    {id:"rt08",domain:"Routing",q:"EIGRP's AD for internal routes is?",choices:["90","110","100","170"],answer:0,explain:"EIGRP internal = 90. EIGRP external = 170. Both lower than OSPF (110)."},
+    {id:"rt09",domain:"Routing",q:"What does the 'O' code mean in 'show ip route'?",choices:["OSPF-learned route","Original route","Outbound route","Optional route"],answer:0,explain:"Route codes: C=Connected, S=Static, O=OSPF, D=EIGRP, R=RIP, B=BGP."},
+    {id:"rt10",domain:"Routing",q:"Which OSPF network type uses a DR/BDR election?",choices:["Broadcast multi-access","Point-to-point","NBMA (no DR)","Loopback"],answer:0,explain:"On broadcast networks (Ethernet), OSPF elects a DR and BDR to reduce LSA flooding. P2P links don't need DR/BDR."},
+  ],
 
-      <div className="teach-h2">THE 4-STEP METHOD</div>
-      <div className="teach-code">{`GIVEN: 172.16.5.130/26
+  switching: [
+    {id:"sw01",domain:"Switching",q:"What STP port state forwards data AND learns MAC addresses?",choices:["Forwarding","Learning","Listening","Blocking"],answer:0,explain:"Only Forwarding passes user traffic. Learning builds the MAC table but drops user frames."},
+    {id:"sw02",domain:"Switching",q:"Which switch wins the STP Root Bridge election?",choices:["Lowest Bridge ID","Highest Bridge ID","Lowest MAC address only","Fastest port speed"],answer:0,explain:"Bridge ID = Priority (default 32768) + MAC address. Lowest Bridge ID wins. Tie → lowest MAC."},
+    {id:"sw03",domain:"Switching",q:"What is the default STP port cost for a 1 Gbps link?",choices:["4","19","100","2"],answer:0,explain:"Port costs: 10M=100, 100M=19, 1G=4, 10G=2. Lower cost = preferred path to root."},
+    {id:"sw04",domain:"Switching",q:"What command assigns a port to VLAN 10?",choices:["switchport access vlan 10","vlan 10 assign port","set vlan 10","switchport vlan 10 access"],answer:0,explain:"Full sequence: switchport mode access → switchport access vlan 10."},
+    {id:"sw05",domain:"Switching",q:"What encapsulation protocol tags VLAN frames on trunk links?",choices:["802.1Q","802.1X","802.3ad","ISL"],answer:0,explain:"802.1Q (dot1q) adds a 4-byte tag to Ethernet frames. ISL is Cisco proprietary and legacy."},
+    {id:"sw06",domain:"Switching",q:"PortFast should ONLY be enabled on which type of port?",choices:["Access ports connected to end devices","Trunk ports","Uplinks to other switches","Root ports"],answer:0,explain:"PortFast skips Listening/Learning. NEVER on trunk/switch ports — causes loops. Use BPDU Guard alongside."},
+    {id:"sw07",domain:"Switching",q:"Which STP variant provides the fastest convergence?",choices:["Rapid PVST+","802.1D STP","PVST+","MST"],answer:0,explain:"Rapid PVST+ (802.1w per-VLAN) converges in ~1-2 seconds vs ~50 seconds for classic STP."},
+    {id:"sw08",domain:"Switching",q:"What is the native VLAN on a trunk port?",choices:["The VLAN whose traffic is sent untagged","The management VLAN","VLAN 1 always","The highest VLAN number"],answer:0,explain:"Native VLAN traffic is untagged on trunk links. Both ends must match or frames get misrouted (VLAN hopping attack)."},
+  ],
 
-Step 1 — Subnet mask for /26 = 255.255.255.192
-Step 2 — Block size = 256 - 192 = 64
-Step 3 — Count blocks: 0, 64, 128, 192...
-          130 falls in the 128 block
-Step 4 — Network   = 172.16.5.128
-          Broadcast = 172.16.5.191  (128 + 64 - 1)
-          Hosts     = 172.16.5.129 → .190  (62 usable)`}</div>
-      <div className="teach-tip">Magic number trick: 256 minus the interesting octet of the mask = block size. Count up in blocks until you pass your IP. Previous block = your network address.</div>
+  ipServices: [
+    {id:"ip01",domain:"IP Services",q:"Which NAT type maps one private IP to one public IP permanently?",choices:["Static NAT","Dynamic NAT","PAT","NAT overload"],answer:0,explain:"Static NAT = 1:1 permanent mapping. Used for servers that need a consistent public IP (web, mail servers)."},
+    {id:"ip02",domain:"IP Services",q:"PAT allows many private IPs to share one public IP using what?",choices:["Port numbers","MAC addresses","VLAN tags","ARP entries"],answer:0,explain:"PAT (Port Address Translation) = NAT Overload. Tracks sessions by unique source port numbers."},
+    {id:"ip03",domain:"IP Services",q:"Which DHCP message is broadcast from a client seeking an IP?",choices:["DHCPDISCOVER","DHCPOFFER","DHCPREQUEST","DHCPACK"],answer:0,explain:"DORA: Discover (broadcast) → Offer (server) → Request (broadcast) → Acknowledge (server)."},
+    {id:"ip04",domain:"IP Services",q:"What command enables a router interface as a DHCP relay agent?",choices:["ip helper-address","ip dhcp relay","ip forward-dhcp","helper dhcp enable"],answer:0,explain:"'ip helper-address <server>' converts DHCP broadcasts to unicast and forwards to the DHCP server."},
+    {id:"ip05",domain:"IP Services",q:"NTP stratum 1 servers synchronize directly from what?",choices:["Reference clocks (GPS/atomic)","Stratum 0","The internet","Each other"],answer:0,explain:"Stratum 0 = physical clock device. Stratum 1 = directly connected to stratum 0. Each hop adds 1."},
+    {id:"ip06",domain:"IP Services",q:"Which protocol does SNMP use for transport?",choices:["UDP","TCP","ICMP","ARP"],answer:0,explain:"SNMP uses UDP port 161 (agent) and 162 (trap). UDP is lightweight — suitable for monitoring traffic."},
+    {id:"ip07",domain:"IP Services",q:"What is the purpose of a DHCP address pool exclusion?",choices:["Reserve IPs for static assignment","Delete the DHCP pool","Block specific clients","Set lease duration"],answer:0,explain:"'ip dhcp excluded-address' prevents DHCP from assigning specific IPs — used for routers, servers, printers that need static IPs."},
+    {id:"ip08",domain:"IP Services",q:"What protocol resolves IP addresses to MAC addresses?",choices:["ARP","DNS","RARP","ICMP"],answer:0,explain:"ARP (Address Resolution Protocol) broadcasts a request for the MAC address associated with an IP. Cached in the ARP table."},
+    {id:"ip09",domain:"IP Services",q:"DNS uses which port number?",choices:["53","80","443","67"],answer:0,explain:"DNS = port 53 (UDP for queries, TCP for zone transfers). Key ports: HTTP=80, HTTPS=443, DHCP=67/68."},
+    {id:"ip10",domain:"IP Services",q:"Which NAT term describes the inside global address?",choices:["The public IP that represents internal hosts","The private IP of internal hosts","The outside server's IP","The router's inside interface IP"],answer:0,explain:"NAT terms: Inside Local=private host IP, Inside Global=public IP representing private host, Outside Global=destination server IP."},
+  ],
 
-      <div className="teach-h2">IP ADDRESS CLASSES</div>
-      <table className="teach-table">
-        <thead><tr><th>Class</th><th>Range</th><th>Default Mask</th><th>Private Range</th></tr></thead>
-        <tbody>
-          {[["A","1–126","255.0.0.0 (/8)","10.0.0.0/8"],["B","128–191","255.255.0.0 (/16)","172.16.0.0/12"],["C","192–223","255.255.255.0 (/24)","192.168.0.0/16"],["D","224–239","N/A (Multicast)","—"],["E","240–255","N/A (Experimental)","—"]].map(r => <tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}
-        </tbody>
-      </table>
+  ipv6: [
+    {id:"v601",domain:"IPv6",q:"How many bits are in an IPv6 address?",choices:["128","64","32","256"],answer:0,explain:"IPv6 = 128 bits written as 8 groups of 4 hex digits. vs IPv4 = 32 bits."},
+    {id:"v602",domain:"IPv6",q:"Which IPv6 address type is equivalent to IPv4 private addresses?",choices:["Unique Local (fc00::/7)","Link-Local (fe80::/10)","Global Unicast (2000::/3)","Multicast (ff00::/8)"],answer:0,explain:"Unique Local (fc00::/7) ≈ private. Link-local is fe80::/10 (auto-configured, not routable). Global unicast is internet-routable."},
+    {id:"v603",domain:"IPv6",q:"What replaces ARP in IPv6?",choices:["Neighbor Discovery Protocol (NDP)","RARP","DHCPv6","ICMPv6 ping"],answer:0,explain:"NDP uses ICMPv6 messages (NS/NA) to resolve IPv6 addresses to MAC addresses. Also does router discovery."},
+    {id:"v604",domain:"IPv6",q:"Which IPv6 address is the loopback address?",choices:["::1","fe80::1","::","ff02::1"],answer:0,explain:"::1 is loopback (equivalent to 127.0.0.1). :: is the unspecified address. ff02::1 is all-nodes multicast."},
+    {id:"v605",domain:"IPv6",q:"What is SLAAC?",choices:["Stateless Address Autoconfiguration","Static Link Address Allocation","Subnet Layer Auto Assignment Code","Secure Local Address Access Control"],answer:0,explain:"SLAAC lets IPv6 hosts configure their own address using the network prefix (from Router Advertisement) + EUI-64 interface ID."},
+    {id:"v606",domain:"IPv6",q:"Which rule allows consecutive groups of zeros to be abbreviated in IPv6?",choices:[":: replaces one consecutive group of all-zero groups","A single : replaces zeros","Zeros can be dropped entirely","Leading zeros only can be removed"],answer:0,explain:":: can replace ONE consecutive sequence of all-zero groups. Leading zeros in each group can always be dropped."},
+    {id:"v607",domain:"IPv6",q:"OSPFv3 is used to route which type of traffic?",choices:["IPv6","IPv4 only","Both IPv4 and IPv6","MPLS"],answer:0,explain:"OSPFv3 supports IPv6. OSPFv2 supports IPv4. Modern implementations use OSPFv3 with address families for both."},
+    {id:"v608",domain:"IPv6",q:"What prefix is used for IPv6 link-local addresses?",choices:["fe80::/10","fc00::/7","2000::/3","ff00::/8"],answer:0,explain:"Link-local addresses (fe80::/10) are auto-configured on every IPv6 interface and only usable on the local link."},
+  ],
 
-      <div className="teach-h2">SPECIAL ADDRESSES</div>
-      <div className="teach-cols">
-        <div className="teach-card"><div className="teach-card-title">LOOPBACK</div><div className="teach-card-body">127.0.0.0/8 — always refers to localhost. 127.0.0.1 used to test the TCP/IP stack on the local machine.</div></div>
-        <div className="teach-card"><div className="teach-card-title">APIPA</div><div className="teach-card-body">169.254.0.0/16 — auto-assigned when DHCP fails. Not routable. Indicates a DHCP problem.</div></div>
-        <div className="teach-card"><div className="teach-card-title">BROADCAST</div><div className="teach-card-body">255.255.255.255 — limited broadcast (local subnet only). Subnet broadcast = last address in the block.</div></div>
-        <div className="teach-card"><div className="teach-card-title">NETWORK ADDRESS</div><div className="teach-card-body">First address in a block — identifies the subnet itself. Cannot be assigned to a host.</div></div>
-      </div>
+  wireless: [
+    {id:"wl01",domain:"Wireless",q:"Which 802.11 standard operates only in the 5 GHz band?",choices:["802.11a","802.11b","802.11g","802.11n"],answer:0,explain:"802.11a = 5GHz only, up to 54 Mbps. 802.11b/g = 2.4GHz. 802.11n = both bands (dual-band)."},
+    {id:"wl02",domain:"Wireless",q:"How many non-overlapping channels exist in 2.4 GHz (US)?",choices:["3 (1, 6, 11)","11","14","6"],answer:0,explain:"Channels 1, 6, and 11 are the only non-overlapping channels in 2.4 GHz. Adjacent channels cause co-channel interference."},
+    {id:"wl03",domain:"Wireless",q:"What is the role of a Wireless LAN Controller (WLC)?",choices:["Centrally manages lightweight APs","Provides DHCP to wireless clients","Acts as a wireless repeater","Encrypts all wireless traffic"],answer:0,explain:"WLC centrally manages lightweight APs (LAPs). Handles roaming, config, RF management, and security policies."},
+    {id:"wl04",domain:"Wireless",q:"Which wireless security protocol is considered most secure?",choices:["WPA3","WPA2","WPA","WEP"],answer:0,explain:"WPA3 (2018) is most secure. WEP is completely broken. WPA2 with AES/CCMP is still widely used and acceptable."},
+    {id:"wl05",domain:"Wireless",q:"What is the CAPWAP protocol used for?",choices:["Communication between WLC and lightweight APs","Wireless client authentication","VLAN tagging on wireless frames","QoS for wireless traffic"],answer:0,explain:"CAPWAP (Control And Provisioning of Wireless Access Points) tunnels management and data traffic between lightweight APs and the WLC."},
+    {id:"wl06",domain:"Wireless",q:"802.11ac operates in which frequency band?",choices:["5 GHz only","2.4 GHz only","Both 2.4 and 5 GHz","6 GHz only"],answer:0,explain:"802.11ac (Wi-Fi 5) operates in 5 GHz only, up to several Gbps. 802.11ax (Wi-Fi 6) added 6 GHz."},
+    {id:"wl07",domain:"Wireless",q:"What does BSS stand for in wireless networking?",choices:["Basic Service Set","Broadcast Signal Strength","Base Station System","Bandwidth Signal Standard"],answer:0,explain:"BSS = single AP with its clients. IBSS = ad-hoc (peer-to-peer). ESS = multiple APs sharing the same SSID."},
+    {id:"wl08",domain:"Wireless",q:"Which authentication method uses a RADIUS server for wireless?",choices:["802.1X / EAP","PSK (Pre-Shared Key)","WEP","Open Authentication"],answer:0,explain:"802.1X with EAP uses a RADIUS server to authenticate each user individually. More secure than PSK for enterprise."},
+  ],
 
-      <div className="teach-h2">SUBNETTING FORMULAS</div>
-      <div className="teach-cols">
-        <div className="teach-card"><div className="teach-card-title">SUBNETS CREATED</div><div className="teach-card-body">2^n where n = bits borrowed from host portion</div></div>
-        <div className="teach-card"><div className="teach-card-title">HOSTS PER SUBNET</div><div className="teach-card-body">2^h − 2 where h = remaining host bits (−2 removes network & broadcast)</div></div>
-      </div>
-      <div className="teach-tip">Powers of 2 to memorize: 2¹=2, 2²=4, 2³=8, 2⁴=16, 2⁵=32, 2⁶=64, 2⁷=128, 2⁸=256, 2⁹=512, 2¹⁰=1024. You'll use these constantly on the exam.</div>
-    </div>
-  );
-}
+  security: [
+    {id:"sc01",domain:"Security",q:"Which ACL type can filter based on both source AND destination IP?",choices:["Extended ACL","Standard ACL","Named ACL","Dynamic ACL"],answer:0,explain:"Extended ACLs (100-199) filter on src IP, dst IP, protocol, and port. Standard ACLs (1-99) filter src IP only."},
+    {id:"sc02",domain:"Security",q:"Where should a Standard ACL be placed?",choices:["Close to the destination","Close to the source","On the core switch","On the WAN link"],answer:0,explain:"Standard ACLs only match source IP. Place near destination to avoid over-blocking traffic to other destinations."},
+    {id:"sc03",domain:"Security",q:"What does AAA stand for?",choices:["Authentication, Authorization, Accounting","Access, Authorization, Auditing","Authentication, Access, Auditing","Accounting, Authorization, Access"],answer:0,explain:"AAA: Authentication (who are you?), Authorization (what can you do?), Accounting (what did you do?)."},
+    {id:"sc04",domain:"Security",q:"Which protocol does RADIUS use for transport?",choices:["UDP","TCP","Both UDP and TCP","ICMP"],answer:0,explain:"RADIUS uses UDP (ports 1812/1813). TACACS+ uses TCP (port 49) and encrypts the entire packet (more secure)."},
+    {id:"sc05",domain:"Security",q:"What is a VLAN hopping attack?",choices:["Attacker gains access to VLANs they shouldn't by exploiting trunk negotiation","Attacker jumps between wireless VLANs","Attacker floods the CAM table","Attacker spoofs VLAN tags"],answer:0,explain:"VLAN hopping exploits DTP (Dynamic Trunking Protocol). Mitigation: disable DTP, change native VLAN from 1, use dedicated trunks."},
+    {id:"sc06",domain:"Security",q:"What is the purpose of DHCP snooping?",choices:["Prevents rogue DHCP servers","Encrypts DHCP messages","Speeds up DHCP response","Assigns static IPs to clients"],answer:0,explain:"DHCP snooping builds a binding table of legitimate DHCP leases. Untrusted ports drop DHCP server responses, blocking rogue servers."},
+    {id:"sc07",domain:"Security",q:"Port security violation mode that drops frames silently with no log?",choices:["Protect","Restrict","Shutdown","Disabled"],answer:0,explain:"Protect: silently drops. Restrict: drops + logs/increments counter. Shutdown (default): err-disables the port."},
+    {id:"sc08",domain:"Security",q:"What does the 'implicit deny' at the end of an ACL mean?",choices:["All traffic not matching an ACL entry is dropped","The last rule always permits all","Deny rules override permit rules","ACL processing stops at first deny"],answer:0,explain:"Every ACL has an invisible 'deny any' at the end. If no rule matches a packet, it's dropped. Always add 'permit ip any any' if needed."},
+    {id:"sc09",domain:"Security",q:"Which command enables SSH on a Cisco router (version 2)?",choices:["ip ssh version 2","ssh enable version 2","crypto ssh version 2","enable ssh v2"],answer:0,explain:"Steps: hostname, domain-name, crypto key generate rsa, ip ssh version 2, line vty: transport input ssh."},
+    {id:"sc10",domain:"Security",q:"What is Dynamic ARP Inspection (DAI)?",choices:["Validates ARP packets against DHCP snooping binding table","Encrypts ARP broadcasts","Blocks all ARP traffic","Converts ARP to unicast"],answer:0,explain:"DAI prevents ARP poisoning/spoofing by checking ARP packets against the DHCP snooping binding table. Works with DHCP snooping."},
+  ],
 
-function RoutingLearn() {
-  return (
-    <div className="scroll-area">
-      <div className="teach-h1">// ROUTING PROTOCOLS & PATH SELECTION</div>
-      <div className="teach-p">When a router receives a packet, it consults its routing table to find the best path. Route selection follows a strict priority: Longest Prefix Match → Administrative Distance → Metric. Understanding this order is critical for the CCNA exam.</div>
+  automation: [
+    {id:"au01",domain:"Automation",q:"Which data format uses curly braces and key-value pairs?",choices:["JSON","XML","YAML","CSV"],answer:0,explain:"JSON (JavaScript Object Notation) uses {} for objects, [] for arrays, and key:value pairs. Most common in REST APIs."},
+    {id:"au02",domain:"Automation",q:"REST APIs use which protocol?",choices:["HTTP/HTTPS","SNMP","NETCONF","SSH"],answer:0,explain:"REST (Representational State Transfer) uses HTTP/HTTPS methods: GET, POST, PUT, PATCH, DELETE."},
+    {id:"au03",domain:"Automation",q:"What is the difference between a traditional network and an SDN?",choices:["SDN separates control plane from data plane","SDN uses faster hardware","SDN eliminates the need for switches","SDN only works with wireless"],answer:0,explain:"SDN (Software Defined Networking) centralizes the control plane in a controller, leaving switches/routers to handle data plane forwarding only."},
+    {id:"au04",domain:"Automation",q:"Which protocol uses YANG data models for network device configuration?",choices:["NETCONF","SNMP","REST","Telnet"],answer:0,explain:"NETCONF uses XML and YANG data models. RESTCONF is similar but uses HTTP/JSON. Both are modern alternatives to SNMP."},
+    {id:"au05",domain:"Automation",q:"What does an Ansible playbook use to define tasks?",choices:["YAML","Python","JSON","XML"],answer:0,explain:"Ansible playbooks are written in YAML. Ansible is agentless (uses SSH), making it popular for network automation."},
+    {id:"au06",domain:"Automation",q:"Which HTTP method is used to retrieve data from a REST API?",choices:["GET","POST","PUT","DELETE"],answer:0,explain:"REST verbs: GET=read, POST=create, PUT=replace, PATCH=update, DELETE=remove."},
+    {id:"au07",domain:"Automation",q:"What is a controller-based network's northbound interface used for?",choices:["Communication between controller and applications","Communication between controller and network devices","Connecting to the internet","Managing physical cabling"],answer:0,explain:"Northbound = controller ↔ applications (REST API). Southbound = controller ↔ network devices (OpenFlow, NETCONF)."},
+    {id:"au08",domain:"Automation",q:"Which Cisco platform provides a DNA Center controller?",choices:["Cisco DNA Center (Catalyst Center)","Cisco ASA","Cisco ISE","Cisco Prime"],answer:0,explain:"Cisco DNA Center (now Catalyst Center) is Cisco's SDN controller for campus networks, providing intent-based networking."},
+  ],
+};
 
-      <div className="teach-h2">ROUTE SELECTION PRIORITY</div>
-      <div className="teach-code">{`Priority 1: LONGEST PREFIX MATCH (most specific always wins)
-  /29 > /24 > /16 > /8 > /0 (default route)
-  Destination 192.168.1.50:
-    /29 → 192.168.1.48/29 ← WINS (most specific)
-    /24 → 192.168.1.0/24
-    /0  → 0.0.0.0/0 (last resort only)
+// Flatten all questions for exam mode
+const EXAM_POOL = Object.values(ALL_QUESTIONS).flat();
 
-Priority 2: ADMINISTRATIVE DISTANCE (if same prefix length)
-  Lower AD = more trusted = preferred
+// Domain display names and colors
+const DOMAIN_META = {
+  Subnetting:  { color: "#00ff41", label: "Subnetting & IP" },
+  Routing:     { color: "#00ccff", label: "Routing Protocols" },
+  Switching:   { color: "#00ffcc", label: "Switching & VLANs" },
+  "IP Services":   { color: "#ffaa00", label: "IP Services" },
+  IPv6:        { color: "#aa88ff", label: "IPv6" },
+  Wireless:    { color: "#ff88aa", label: "Wireless" },
+  Security:    { color: "#ff4444", label: "Security" },
+  Automation:  { color: "#44aaff", label: "Automation" },
+};
 
-Priority 3: METRIC (if same protocol)
-  Lower metric = shorter/faster path`}</div>
-      <div className="teach-info">Longest prefix match ALWAYS wins regardless of AD or metric. A specific /32 host route beats a /0 default route every time, even if the /0 is static (AD=1) and the /32 is RIP (AD=120).</div>
-
-      <div className="teach-h2">ADMINISTRATIVE DISTANCE TABLE</div>
-      <table className="teach-table">
-        <thead><tr><th>Route Source</th><th>AD</th><th>Notes</th></tr></thead>
-        <tbody>
-          {[["Connected Interface",0,"Most trusted — you're directly attached"],["Static Route",1,"Near-maximum trust — manually configured"],["EIGRP Summary",5,"Auto-summarized EIGRP routes"],["External BGP (eBGP)",20,"Routes from other AS via BGP"],["EIGRP Internal",90,"EIGRP routes within same AS ← memorize"],["OSPF",110,"Most common on CCNA ← memorize"],["IS-IS",115,"Used in ISP networks"],["RIP",120,"Old distance-vector ← memorize"],["External EIGRP",170,"EIGRP redistributed routes"],["Internal BGP (iBGP)",200,"BGP within same AS"],["Unknown",255,"Not installed in routing table"]].map(([src,ad,note]) => (
-            <tr key={src}><td>{src}</td><td style={{color:ad<=1?"#00ff41":ad<=90?"#00ccff":ad>=120?"#ffaa00":"#00ff41aa",fontFamily:"'Orbitron',sans-serif",fontSize:18}}>{ad}</td><td style={{color:"#00ff4166"}}>{note}</td></tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="teach-tip">Must-memorize AD values: Connected=0, Static=1, EIGRP=90, OSPF=110, RIP=120. These appear in almost every CCNA routing question.</div>
-
-      <div className="teach-h2">OSPF vs EIGRP vs RIP COMPARISON</div>
-      <div className="teach-cols-3">
-        {[{n:"OSPF",t:"Link-State",m:"Cost (bandwidth)",ad:110,c:"Fast (~subsecond w/ BFD)",s:"Enterprise/Large",cmd:"router ospf 1\n network 10.0.0.0 0.255.255.255 area 0"},
-          {n:"EIGRP",t:"Advanced D-V (Hybrid)",m:"BW + Delay + Load + Reliability",ad:90,c:"Very Fast (DUAL algo)",s:"Cisco-only, Large",cmd:"router eigrp 100\n network 10.0.0.0\n no auto-summary"},
-          {n:"RIP v2",t:"Distance-Vector",m:"Hop count (max 15)",ad:120,c:"Slow (30s updates)",s:"Small/Legacy only",cmd:"router rip\n version 2\n network 10.0.0.0\n no auto-summary"}].map(p => (
-          <div className="teach-card" key={p.n}>
-            <div className="teach-card-title" style={{fontFamily:"'Orbitron',sans-serif",fontSize:18}}>{p.n}</div>
-            <div className="teach-card-body">
-              <div>Type: {p.t}</div>
-              <div>Metric: {p.m}</div>
-              <div>AD: <span style={{color:"#00ff41"}}>{p.ad}</span></div>
-              <div>Conv: {p.c}</div>
-            </div>
-            <div className="teach-code" style={{marginTop:8,fontSize:10,padding:"6px 8px"}}>{p.cmd}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="teach-h2">READING A ROUTING TABLE</div>
-      <div className="teach-code">{`R1# show ip route
-Codes: C-connected, S-static, O-OSPF, D-EIGRP, R-RIP
-
-C   192.168.1.0/24 is directly connected, GigabitEthernet0/0
-S   0.0.0.0/0 [1/0] via 10.0.0.1
-O   10.10.0.0/16 [110/2] via 10.0.0.2, 00:01:23, Gi0/1
-D   172.16.0.0/12 [90/256640] via 10.0.0.3, Gi0/2
-R   192.168.5.0/24 [120/1] via 10.0.0.4, 00:00:23, Gi0/3
-         ^code  ^network   ^[AD/metric]  ^next-hop  ^interface`}</div>
-
-      <div className="teach-h2">STATIC ROUTE CONFIGURATION</div>
-      <div className="teach-code">{`! Standard static route
-ip route 192.168.2.0 255.255.255.0 10.0.0.2
-
-! Default route (gateway of last resort)
-ip route 0.0.0.0 0.0.0.0 10.0.0.1
-
-! Floating static (AD=150 loses to OSPF=110, acts as backup)
-ip route 192.168.2.0 255.255.255.0 10.0.0.3 150
-
-! Null route (blackhole — drop traffic, prevent routing loops)
-ip route 10.0.0.0 255.0.0.0 Null0`}</div>
-    </div>
-  );
-}
-
-function TopoLearn() {
-  return (
-    <div className="scroll-area">
-      <div className="teach-h1">// NETWORK TOPOLOGY & DESIGN</div>
-      <div className="teach-p">Network topology defines how devices connect physically and logically. The right topology affects performance, fault tolerance, and cost. Cisco's hierarchical model is the most tested design framework on the CCNA exam.</div>
-
-      <div className="teach-h2">THE CISCO 3-TIER HIERARCHY</div>
-      <div className="teach-code">{`┌──────────────────────────────────────────┐
-│              CORE LAYER                  │
-│  [Core-SW1] ←────────────→ [Core-SW2]   │  Fast backbone, NO filtering
-└────────────┬───────────────────┬─────────┘
-             │                   │
-┌────────────┴────┐       ┌──────┴──────────┐
-│ DISTRIBUTION    │       │ DISTRIBUTION     │
-│ [Dist-SW1]      │       │ [Dist-SW2]       │  Routing, ACLs, policy
-│ Inter-VLAN rtg  │       │ Inter-VLAN rtg   │
-└────┬────────────┘       └──────────┬───────┘
-     │                               │
-┌────┴──────┐                 ┌──────┴────┐
-│  ACCESS   │                 │  ACCESS   │
-│ [Acc-SW1] │                 │ [Acc-SW2] │  End devices, VLANs, port sec
-│ PCs/VoIP  │                 │ PCs/VoIP  │
-└───────────┘                 └───────────┘`}</div>
-      <div className="teach-cols-3">
-        <div className="teach-card"><div className="teach-card-title">CORE LAYER</div><div className="teach-card-body">High-speed backbone. No packet manipulation. Just fast switching between distribution blocks. Never put ACLs here.</div></div>
-        <div className="teach-card"><div className="teach-card-title">DISTRIBUTION LAYER</div><div className="teach-card-body">Routing between VLANs, applying ACLs, summarizing routes. Boundary between access and core. QoS policies applied here.</div></div>
-        <div className="teach-card"><div className="teach-card-title">ACCESS LAYER</div><div className="teach-card-body">Where end devices connect. Port security, VLAN assignment, PoE for phones/APs. First STP domain. 802.1X auth.</div></div>
-      </div>
-
-      <div className="teach-h2">NETWORK DEVICES BY OSI LAYER</div>
-      <table className="teach-table">
-        <thead><tr><th>Device</th><th>OSI Layer</th><th>Forwarding Basis</th><th>Creates</th></tr></thead>
-        <tbody>
-          {[["Hub","L1 Physical","None (repeats signal)","1 collision domain, 1 broadcast domain"],["Switch","L2 Data Link","MAC address (CAM table)","Separate collision domains, 1 broadcast domain"],["Router","L3 Network","IP address (routing table)","Separate broadcast domains"],["L3 Switch","L2 + L3","MAC + IP","Separate broadcast domains (SVI routing)"],["Firewall","L3–L7","IP + port + stateful rules","Security zones"],["AP","L1–L2","Bridges 802.11 ↔ 802.3","Wireless collision domain"]].map(r => <tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td style={{color:"#00ff4166"}}>{r[3]}</td></tr>)}
-        </tbody>
-      </table>
-      <div className="teach-tip">Routers break broadcast domains. Switches break collision domains. Hubs do neither. This distinction appears constantly on the CCNA exam.</div>
-
-      <div className="teach-h2">CABLE TYPES</div>
-      <div className="teach-cols">
-        <div className="teach-card"><div className="teach-card-title">STRAIGHT-THROUGH</div><div className="teach-card-body">Connects unlike devices: PC↔Switch, Router↔Switch. Pins map 1:1. Most common cable type.</div></div>
-        <div className="teach-card"><div className="teach-card-title">CROSSOVER</div><div className="teach-card-body">Connects like devices: Switch↔Switch, PC↔PC. Tx↔Rx crossed. Modern switches use Auto-MDIX so often not needed.</div></div>
-        <div className="teach-card"><div className="teach-card-title">ROLLOVER / CONSOLE</div><div className="teach-card-body">PC COM port to device console port. Pin 1↔8, 2↔7 (fully reversed). Used for initial device configuration.</div></div>
-        <div className="teach-card"><div className="teach-card-title">FIBER (SMF vs MMF)</div><div className="teach-card-body">SMF = single-mode, long distance, laser, yellow. MMF = multi-mode, shorter range, LED, orange/aqua. SFP slots on switches.</div></div>
-      </div>
-
-      <div className="teach-h2">TOPOLOGY TYPES OVERVIEW</div>
-      <table className="teach-table">
-        <thead><tr><th>Topology</th><th>Pros</th><th>Cons</th><th>Use Case</th></tr></thead>
-        <tbody>
-          {[["Star","Easy troubleshoot, scalable","Single PoF at center","Office LANs"],["Mesh (Full)","Max redundancy","Very expensive","WAN core"],["Mesh (Partial)","Balanced cost/redundancy","Complex","Enterprise WAN"],["Bus","Simple","Shared collision domain, legacy","Old Ethernet"],["Ring","Predictable latency","Full ring failure risk","SONET, FDDI"],["Spine-Leaf","Predictable latency, no STP","Higher cost","Data centers"]].map(r => <tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function VlanLearn() {
-  return (
-    <div className="scroll-area">
-      <div className="teach-h1">// VLANs, STP & NETWORK SECURITY</div>
-      <div className="teach-p">VLANs logically segment broadcast domains on a single physical switch. STP prevents Layer 2 loops. ACLs filter traffic at Layer 3. These three topics make up a huge portion of the CCNA switching and security domains.</div>
-
-      <div className="teach-h2">VLAN CONFIGURATION</div>
-      <div className="teach-code">{`! Create VLANs
-Switch(config)# vlan 10
-Switch(config-vlan)# name Finance
-Switch(config)# vlan 20
-Switch(config-vlan)# name Guest
-
-! Access port — carries ONE VLAN, for end devices
-Switch(config-if)# switchport mode access
-Switch(config-if)# switchport access vlan 10
-
-! Trunk port — carries MULTIPLE VLANs, between switches/routers
-Switch(config-if)# switchport mode trunk
-Switch(config-if)# switchport trunk encapsulation dot1q
-Switch(config-if)# switchport trunk allowed vlan 10,20,99
-
-! Native VLAN (untagged traffic on trunk)
-Switch(config-if)# switchport trunk native vlan 99
-
-! Verify
-Switch# show vlan brief
-Switch# show interfaces trunk`}</div>
-
-      <table className="teach-table">
-        <thead><tr><th>VLAN Range</th><th>Type</th><th>Notes</th></tr></thead>
-        <tbody>
-          {[["1","Default VLAN","All ports start here — never use for user traffic"],["2–1001","Normal range","Standard user VLANs — stored in flash:vlan.dat"],["1002–1005","Legacy","Reserved for Token Ring/FDDI — cannot be deleted"],["1006–4094","Extended","Requires VTP transparent mode — large environments"]].map(r => <tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td></tr>)}
-        </tbody>
-      </table>
-      <div className="teach-tip">Best practice: Never use VLAN 1. Put user data on custom VLANs. Put unused ports in a "parking lot" VLAN (e.g. 999) with no routing. Change native VLAN to something other than 1.</div>
-
-      <div className="teach-h2">INTER-VLAN ROUTING</div>
-      <div className="teach-cols">
-        <div className="teach-card">
-          <div className="teach-card-title">ROUTER-ON-A-STICK</div>
-          <div className="teach-card-body">One physical router port with sub-interfaces per VLAN. 802.1Q tags frames. Simple but can be a bottleneck.</div>
-          <div className="teach-code" style={{fontSize:10,padding:"6px 8px",marginTop:6}}>{`interface gi0/0.10
- encapsulation dot1q 10
- ip address 192.168.10.1 255.255.255.0
-interface gi0/0.20
- encapsulation dot1q 20
- ip address 192.168.20.1 255.255.255.0`}</div>
-        </div>
-        <div className="teach-card">
-          <div className="teach-card-title">LAYER 3 SWITCH (SVIs)</div>
-          <div className="teach-card-body">Switch Virtual Interfaces — routing done internally at wire speed. No external router needed. Preferred in modern networks.</div>
-          <div className="teach-code" style={{fontSize:10,padding:"6px 8px",marginTop:6}}>{`ip routing
-interface vlan 10
- ip address 192.168.10.1 255.255.255.0
- no shutdown
-interface vlan 20
- ip address 192.168.20.1 255.255.255.0
- no shutdown`}</div>
-        </div>
-      </div>
-
-      <div className="teach-h2">SPANNING TREE PROTOCOL (STP)</div>
-      <div className="teach-code">{`STP Election (802.1D):
-1. Elect Root Bridge — lowest Bridge ID (Priority + MAC)
-   Default priority = 32768. Lower wins.
-   Tie-break: lower MAC address
-
-2. All non-root switches elect a Root Port
-   (port with lowest cost path to root)
-
-3. Each segment elects a Designated Port
-   (one per segment — usually on root bridge side)
-
-4. Remaining ports go BLOCKING
-
-Port Cost by speed:   Port States:
-  10 Mbps  = 100        Blocking  (20s max age)
-  100 Mbps = 19         Listening (15s fwd delay)
-  1 Gbps   = 4          Learning  (15s fwd delay)
-  10 Gbps  = 2          Forwarding ← only state that passes data
-                        Disabled`}</div>
-
-      <table className="teach-table">
-        <thead><tr><th>Variant</th><th>Standard</th><th>Convergence</th><th>Per-VLAN?</th></tr></thead>
-        <tbody>
-          {[["STP","802.1D","~50 seconds","No (1 instance)"],["PVST+","Cisco proprietary","~50 seconds","Yes"],["RSTP","802.1w","~1–2 seconds","No (1 instance)"],["Rapid PVST+","Cisco 802.1w","~1–2 seconds","Yes ← use this"],["MST (802.1s)","IEEE","~1–2 seconds","Groups of VLANs"]].map(r => <tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td style={{color:r[3].includes("use this")?"#00ff41":"inherit"}}>{r[3]}</td></tr>)}
-        </tbody>
-      </table>
-      <div className="teach-tip">PortFast + BPDU Guard on access ports: PortFast skips Listening/Learning states. BPDU Guard shuts the port if a switch is accidentally connected — prevents accidental loops.</div>
-
-      <div className="teach-h2">ACL FUNDAMENTALS</div>
-      <div className="teach-code">{`ACL Processing Rules:
-• Processed TOP to BOTTOM — first match wins
-• Implicit "deny all" at the end (invisible)
-• Always add "permit ip any any" if needed!
-
-Standard ACL (1–99, 1300–1999) — source IP only:
-  access-list 10 deny   192.168.1.0 0.0.0.255
-  access-list 10 permit any
-  interface gi0/1
-   ip access-group 10 out   ← Apply OUT (close to destination)
-
-Extended ACL (100–199, 2000–2699) — src+dst+port+protocol:
-  access-list 110 deny tcp 10.0.0.0 0.0.0.255 any eq 23
-  access-list 110 permit ip any any
-  interface gi0/0
-   ip access-group 110 in   ← Apply IN (close to source)`}</div>
-      <div className="teach-cols">
-        <div className="teach-card"><div className="teach-card-title">STANDARD ACL PLACEMENT</div><div className="teach-card-body">Place CLOSE TO DESTINATION. Standard ACLs only match source IP — placing near source would over-block traffic to other destinations.</div></div>
-        <div className="teach-card"><div className="teach-card-title">EXTENDED ACL PLACEMENT</div><div className="teach-card-body">Place CLOSE TO SOURCE. Stop unwanted traffic as early as possible to conserve bandwidth on the network.</div></div>
-      </div>
-
-      <div className="teach-h2">PORT SECURITY</div>
-      <div className="teach-code">{`Switch(config-if)# switchport port-security
-Switch(config-if)# switchport port-security maximum 2
-Switch(config-if)# switchport port-security mac-address sticky
-Switch(config-if)# switchport port-security violation shutdown
-
-Violation Modes:
-  shutdown  — port goes err-disabled (default, most secure)
-  restrict  — drops frames, logs violation, port stays up
-  protect   — silently drops frames, no logging`}</div>
-      <div className="teach-info">Err-disabled ports must be manually re-enabled: shutdown → no shutdown on the interface, after fixing the cause.</div>
-    </div>
-  );
-}
-
-// ── DATA ─────────────────────────────────────────────────────────────────────
-
-const subnetQuestions = [
-  {ip:"192.168.10.0/24",q:"How many usable hosts can this subnet support?",choices:["254","256","255","128"],answer:0,explain:"/24 = 8 host bits. Formula: 2^8 - 2 = 254 usable hosts. We subtract 2 for the network and broadcast addresses."},
-  {ip:"10.0.0.0/8",q:"What is the default subnet mask for this Class A address?",choices:["255.255.255.0","255.0.0.0","255.255.0.0","255.255.255.128"],answer:1,explain:"Class A = /8 = 255.0.0.0. Remember: A=/8, B=/16, C=/24 are the defaults."},
-  {ip:"172.16.5.130/26",q:"What is the network address of this host?",choices:["172.16.5.128","172.16.5.0","172.16.5.129","172.16.5.192"],answer:0,explain:"/26 mask = 255.255.255.192. Block size = 256-192 = 64. Blocks: 0, 64, 128, 192. 130 falls in 128 block. Network = 172.16.5.128."},
-  {ip:"192.168.1.200/28",q:"What is the broadcast address of this subnet?",choices:["192.168.1.207","192.168.1.255","192.168.1.215","192.168.1.223"],answer:0,explain:"/28 mask = 255.255.255.240. Block size = 256-240 = 16. Blocks: 192, 208... 200 is in 192 block. Broadcast = 192+16-1 = 207."},
-  {ip:"192.168.100.64/27",q:"What is the valid host range for this subnet?",choices:["192.168.100.65–94","192.168.100.64–95","192.168.100.65–126","192.168.100.64–91"],answer:0,explain:"/27 block=32. Range 64–95. Network=64, Broadcast=95. Valid hosts: 65–94 (30 usable)."},
-  {ip:"172.31.0.0/16",q:"This IP belongs to which private IP range?",choices:["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16","169.254.0.0/16"],answer:1,explain:"172.16.0.0–172.31.255.255 is the Class B private range, summarized as 172.16.0.0/12."},
-  {ip:"192.168.1.0/25",q:"How many usable subnets from splitting a /24 into /25?",choices:["2","4","8","126"],answer:0,explain:"Borrowing 1 bit from host: 2^1 = 2 subnets. Each /25 has 2^7-2 = 126 usable hosts."},
-  {ip:"10.10.10.0/22",q:"How many usable hosts does a /22 network support?",choices:["1022","2046","1024","4094"],answer:0,explain:"/22 has 10 host bits. 2^10 - 2 = 1024 - 2 = 1022 usable hosts."},
-];
-
-const routingQuestions = [
-  {scenario:"Router receives a packet for 192.168.1.50. Which route is selected from the routing table?",routes:[{dest:"0.0.0.0/0",next:"10.0.0.1",proto:"Static",ad:1},{dest:"192.168.1.0/24",next:"10.0.0.2",proto:"OSPF",ad:110},{dest:"192.168.1.48/29",next:"10.0.0.3",proto:"EIGRP",ad:90},{dest:"192.168.0.0/16",next:"10.0.0.4",proto:"RIP",ad:120}],answer:2,explain:"LONGEST PREFIX MATCH always wins first. /29 is the most specific match for 192.168.1.50 (covers .48–.55). AD and metric are not consulted when prefix lengths differ."},
-  {scenario:"Two routes to 10.0.0.0/8 exist — one via OSPF (AD=110), one via RIP (AD=120). Which wins?",routes:[{dest:"10.0.0.0/8",next:"172.16.0.1",proto:"OSPF",ad:110},{dest:"10.0.0.0/8",next:"172.16.0.2",proto:"RIP",ad:120},{dest:"0.0.0.0/0",next:"172.16.0.1",proto:"Static",ad:1},{dest:"10.10.0.0/16",next:"172.16.0.3",proto:"EIGRP",ad:90}],answer:0,explain:"Both routes have the same /8 prefix. When prefix length is equal, compare AD. OSPF (110) < RIP (120), so OSPF wins. Lower AD = more trusted."},
-  {scenario:"Which route source has Administrative Distance = 0?",routes:[{dest:"192.168.1.0/24",next:"Gi0/0",proto:"Connected Interface",ad:0},{dest:"0.0.0.0/0",next:"10.0.0.1",proto:"Static Route",ad:1},{dest:"10.0.0.0/8",next:"10.0.0.2",proto:"EIGRP Internal",ad:90},{dest:"172.16.0.0/12",next:"10.0.0.3",proto:"OSPF",ad:110}],answer:0,explain:"Directly connected interfaces have AD=0 — they are considered perfectly trustworthy since you are physically attached."},
-  {scenario:"Static default route exists. OSPF learns 10.5.5.0/24. Packet destined for 10.5.5.1 — which route wins?",routes:[{dest:"0.0.0.0/0",next:"192.168.1.1",proto:"Static",ad:1},{dest:"10.5.5.0/24",next:"192.168.1.2",proto:"OSPF",ad:110},{dest:"10.0.0.0/8",next:"192.168.1.3",proto:"EIGRP",ad:90},{dest:"10.5.0.0/16",next:"192.168.1.4",proto:"RIP",ad:120}],answer:1,explain:"10.5.5.0/24 is the longest prefix match for 10.5.5.1. Even though Static has lower AD (1), the /24 prefix is more specific than /0, so OSPF wins by prefix length."},
-];
-
-const vlanQuestions = [
-  {title:"VLAN Port Assignment",desc:"Drag each port to its correct VLAN zone. Finance and HR must be isolated from Guest traffic.",pools:["Fa0/1 (Finance PC)","Fa0/2 (Guest WiFi)","Fa0/3 (HR Laptop)","Gi0/1 (Trunk to SW2)"],zones:[{label:"VLAN 10 – Finance/HR (internal)",correct:[0,2]},{label:"VLAN 20 – Guest (untrusted)",correct:[1]},{label:"VLAN 99 – Trunk (carries all VLANs)",correct:[3]}],explain:"Finance and HR share VLAN 10 (same trust level, same broadcast domain). Guest goes to isolated VLAN 20. The trunk port carries tagged frames for all VLANs between switches."},
-  {title:"STP Port States",desc:"Drag each STP port state to its correct behavior description.",pools:["Blocking","Learning","Forwarding","Listening"],zones:[{label:"Passes user frames AND builds MAC table",correct:[2]},{label:"Drops user frames but builds MAC table",correct:[1]},{label:"Drops user frames, listens for BPDUs, no MAC table",correct:[3]},{label:"Drops ALL frames, discards MAC table, blocks everything",correct:[0]}],explain:"STP transitions: Blocking → Listening → Learning → Forwarding. Only the Forwarding state passes user traffic. Learning builds the MAC table to prevent flooding when it reaches Forwarding."},
-];
-
-// ── SHARED COMPONENTS ─────────────────────────────────────────────────────────
+// ─── SHARED COMPONENTS ───────────────────────────────────────────────────────
 
 function ModuleTabs({ tabs, active, onSelect }) {
   return (
     <div className="mod-tabs">
-      {tabs.map(t => <button key={t.id} className={`mod-tab ${active===t.id?"active":""}`} onClick={() => onSelect(t.id)}>{t.label}</button>)}
+      {tabs.map(t => <button key={t.id} className={`mod-tab ${active===t.id?"active":""}`} onClick={()=>onSelect(t.id)}>{t.label}</button>)}
     </div>
   );
 }
@@ -517,428 +338,897 @@ function StatRow({ stats }) {
   );
 }
 
-function ResultScreen({ score, total, onRetry, onLearn }) {
+function ResultScreen({ score, total, onRetry, onLearn, onHome }) {
   const pct = score/total;
+  const grade = pct>=0.8?"ACCESS GRANTED":pct>=0.6?"MARGINAL PASS":"ACCESS DENIED";
+  const gradeColor = pct>=0.8?"#00ff41":pct>=0.6?"#ffaa00":"#ff4444";
   return (
     <div className="result-screen">
-      <div style={{fontSize:12,color:"#00ff4188",marginBottom:8}}>FINAL SCORE</div>
+      <div style={{fontSize:11,color:"#00ff4155",marginBottom:8,letterSpacing:3}}>DRILL COMPLETE</div>
       <div className="result-score">{score}/{total}</div>
-      <div style={{fontSize:13,color:"#00ff4188",margin:"14px 0"}}>
-        {pct>=0.8?"[ ACCESS GRANTED ] Excellent work.":pct>=0.5?"[ PARTIAL ] Review the LEARN tab for weak areas.":"[ ACCESS DENIED ] Study the concepts before retrying."}
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:gradeColor,margin:"12px 0",letterSpacing:2}}>{grade}</div>
+      <div style={{fontSize:13,color:"#00ff4188",marginBottom:20}}>
+        {pct>=0.8?"Solid understanding of this domain.":pct>=0.6?"Review the weak areas in the LEARN tab.":"Study the concepts carefully before retrying."}
       </div>
-      <div style={{display:"flex",gap:12,justifyContent:"center",marginTop:16}}>
-        <button className="btn" onClick={onRetry}>RETRY DRILL</button>
-        <button className="btn btn-info" onClick={onLearn}>📖 REVIEW CONCEPTS</button>
+      <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+        <button className="btn" onClick={onRetry}>RETRY</button>
+        {onLearn && <button className="btn btn-info" onClick={onLearn}>📖 REVIEW</button>}
+        <button className="btn btn-danger" onClick={onHome}>← HOME</button>
       </div>
     </div>
   );
 }
 
-// ── MAGIC NUMBER CALCULATOR ───────────────────────────────────────────────────
+// Generic quiz engine — takes a question array and domain color
+function QuizEngine({ questions, onHome, learnTab, domain }) {
+  const [idx, setIdx] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(false);
+  const [progress] = useProgress();
+
+  const q = questions[idx];
+  const pick = (i) => {
+    if (selected !== null) return;
+    setSelected(i);
+    const correct = i === q.answer;
+    if (correct) setScore(s => s+1);
+    progress.record(q.id, q.domain, correct);
+  };
+  const next = () => {
+    if (idx+1 >= questions.length) setDone(true);
+    else { setIdx(i=>i+1); setSelected(null); }
+  };
+  const reset = () => { setIdx(0); setScore(0); setSelected(null); setDone(false); };
+
+  if (done) return <ResultScreen score={score} total={questions.length} onRetry={reset} onLearn={learnTab} onHome={onHome} />;
+
+  return (
+    <div>
+      <StatRow stats={[{val:idx+1,label:"QUESTION"},{val:questions.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
+      <div className="progress-bar"><div className="progress-fill" style={{width:`${(idx/questions.length)*100}%`}}/></div>
+      <div className="subnet-display flicker">{q.domain} · Q{idx+1}</div>
+      <div style={{fontSize:13,color:"#00ff41cc",marginBottom:12,lineHeight:1.85,padding:"10px 0"}}>{q.q}</div>
+      <div className="answer-grid">
+        {q.choices.map((c,i) => (
+          <button key={i}
+            className={`answer-btn ${selected===i?(i===q.answer?"correct":"wrong"):selected!==null&&i===q.answer?"correct":""}`}
+            onClick={()=>pick(i)}>
+            [{String.fromCharCode(65+i)}] {c}
+          </button>
+        ))}
+      </div>
+      {selected !== null && (
+        <div className={`feedback ${selected===q.answer?"ok":"bad"}`}>
+          <strong>{selected===q.answer?"✓ CORRECT":"✗ INCORRECT"}</strong> — {q.explain}
+          <div style={{marginTop:10}}><button className="btn" onClick={next}>{idx+1>=questions.length?"VIEW RESULTS":"NEXT ›"}</button></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── PROGRESS HOOK ────────────────────────────────────────────────────────────
+
+function useProgress() {
+  const [data, setData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ccna_progress") || "{}"); }
+    catch { return {}; }
+  });
+
+  const record = useCallback((qId, domain, correct) => {
+    setData(prev => {
+      const next = { ...prev };
+      if (!next[qId]) next[qId] = { domain, attempts: 0, correct: 0 };
+      next[qId].attempts += 1;
+      if (correct) next[qId].correct += 1;
+      try { localStorage.setItem("ccna_progress", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const reset = useCallback(() => {
+    setData({});
+    try { localStorage.removeItem("ccna_progress"); } catch {}
+  }, []);
+
+  const getDomainStats = useCallback(() => {
+    const domains = {};
+    Object.values(data).forEach(entry => {
+      if (!domains[entry.domain]) domains[entry.domain] = { attempts: 0, correct: 0 };
+      domains[entry.domain].attempts += entry.attempts;
+      domains[entry.domain].correct += entry.correct;
+    });
+    return domains;
+  }, [data]);
+
+  const getWeakSpots = useCallback(() => {
+    return Object.entries(data)
+      .filter(([,v]) => v.attempts >= 2)
+      .map(([id,v]) => ({ id, domain: v.domain, pct: Math.round((v.correct/v.attempts)*100), attempts: v.attempts }))
+      .filter(x => x.pct < 70)
+      .sort((a,b) => a.pct - b.pct)
+      .slice(0, 8);
+  }, [data]);
+
+  const getStreak = useCallback(() => {
+    const ids = Object.keys(data);
+    let streak = 0;
+    for (let i = ids.length-1; i >= 0; i--) {
+      const d = data[ids[i]];
+      if (d.attempts > 0 && d.correct === d.attempts) streak++;
+      else break;
+    }
+    return streak;
+  }, [data]);
+
+  return [{ data, record, reset, getDomainStats, getWeakSpots, getStreak }];
+}
+
+// ─── MAGIC NUMBER CALCULATOR ──────────────────────────────────────────────────
 
 function MagicNumberCalc() {
   const [ip, setIp] = useState("192.168.1.130");
   const [cidr, setCidr] = useState("26");
 
-  // Parse and compute everything
   const compute = () => {
     const prefix = parseInt(cidr, 10);
     if (isNaN(prefix) || prefix < 1 || prefix > 32) return null;
-
-    // Validate IP
     const octets = ip.split(".").map(Number);
     if (octets.length !== 4 || octets.some(o => isNaN(o) || o < 0 || o > 255)) return null;
-
-    const ipNum = (octets[0] << 24 | octets[1] << 16 | octets[2] << 8 | octets[3]) >>> 0;
-
-    // Mask
-    const maskNum = prefix === 0 ? 0 : (0xFFFFFFFF << (32 - prefix)) >>> 0;
-    const maskOctets = [(maskNum >>> 24) & 0xFF, (maskNum >>> 16) & 0xFF, (maskNum >>> 8) & 0xFF, maskNum & 0xFF];
-
-    // Network
+    const ipNum = (octets[0]<<24 | octets[1]<<16 | octets[2]<<8 | octets[3]) >>> 0;
+    const maskNum = prefix===0?0:(0xFFFFFFFF<<(32-prefix))>>>0;
+    const maskOctets = [(maskNum>>>24)&0xFF,(maskNum>>>16)&0xFF,(maskNum>>>8)&0xFF,maskNum&0xFF];
     const netNum = (ipNum & maskNum) >>> 0;
-    const netOctets = [(netNum >>> 24) & 0xFF, (netNum >>> 16) & 0xFF, (netNum >>> 8) & 0xFF, netNum & 0xFF];
-
-    // Broadcast
-    const wildcard = (~maskNum) >>> 0;
-    const bcNum = (netNum | wildcard) >>> 0;
-    const bcOctets = [(bcNum >>> 24) & 0xFF, (bcNum >>> 16) & 0xFF, (bcNum >>> 8) & 0xFF, bcNum & 0xFF];
-
-    // First/Last host
-    const firstOctets = [...netOctets]; firstOctets[3] += 1;
-    const lastOctets = [...bcOctets]; lastOctets[3] -= 1;
-
-    const hostBits = 32 - prefix;
-    const totalAddresses = Math.pow(2, hostBits);
-    const usableHosts = Math.max(0, totalAddresses - 2);
-
-    // The "interesting octet" — the last non-255 octet of the mask
+    const netOctets = [(netNum>>>24)&0xFF,(netNum>>>16)&0xFF,(netNum>>>8)&0xFF,netNum&0xFF];
+    const wildcard = (~maskNum)>>>0;
+    const bcNum = (netNum | wildcard)>>>0;
+    const bcOctets = [(bcNum>>>24)&0xFF,(bcNum>>>16)&0xFF,(bcNum>>>8)&0xFF,bcNum&0xFF];
+    const firstOctets = [...netOctets]; firstOctets[3]+=1;
+    const lastOctets = [...bcOctets]; lastOctets[3]-=1;
+    const hostBits = 32-prefix;
+    const totalAddresses = Math.pow(2,hostBits);
+    const usableHosts = Math.max(0,totalAddresses-2);
     let interestingOctet = 3;
-    for (let i = 0; i < 4; i++) { if (maskOctets[i] !== 255) { interestingOctet = i; break; } }
-    const magicNumber = 256 - maskOctets[interestingOctet];
-
-    // Generate block list around current network
+    for (let i=0;i<4;i++) { if (maskOctets[i]!==255){interestingOctet=i;break;} }
+    const magicNumber = 256-maskOctets[interestingOctet];
     const networkInteresting = netOctets[interestingOctet];
     const blocks = [];
-    const start = Math.max(0, networkInteresting - magicNumber * 3);
-    for (let b = start; b <= 255; b += magicNumber) {
-      if (blocks.length > 12) break;
-      blocks.push(b);
-    }
-
-    // 32 bits of the IP as array
+    const start = Math.max(0,networkInteresting-magicNumber*3);
+    for (let b=start;b<=255;b+=magicNumber) { if(blocks.length>12)break; blocks.push(b); }
     const ipBits = [];
-    for (let i = 31; i >= 0; i--) ipBits.unshift((ipNum >>> i) & 1);
-
-    return {
-      ip: octets, cidrPrefix: prefix, mask: maskOctets, network: netOctets,
-      broadcast: bcOctets, firstHost: firstOctets, lastHost: lastOctets,
-      hostBits, totalAddresses, usableHosts, magicNumber, interestingOctet,
-      blocks, networkInteresting, ipBits, wildcard: [(wildcard>>>24)&0xFF,(wildcard>>>16)&0xFF,(wildcard>>>8)&0xFF,wildcard&0xFF],
-    };
+    for (let i=31;i>=0;i--) ipBits.unshift((ipNum>>>i)&1);
+    return { ip:octets,cidrPrefix:prefix,mask:maskOctets,network:netOctets,broadcast:bcOctets,
+      firstHost:firstOctets,lastHost:lastOctets,hostBits,totalAddresses,usableHosts,magicNumber,
+      interestingOctet,blocks,networkInteresting,ipBits,
+      wildcard:[(wildcard>>>24)&0xFF,(wildcard>>>16)&0xFF,(wildcard>>>8)&0xFF,wildcard&0xFF] };
   };
 
   const r = compute();
 
-  const octetLabels = ["Octet 1","Octet 2","Octet 3","Octet 4"];
-
   return (
     <div>
       <div className="teach-h1">// MAGIC NUMBER CALCULATOR</div>
-      <div className="teach-p" style={{marginBottom:16}}>
-        Type any IP address and CIDR prefix below. The calculator will walk through every step of the subnetting process visually — exactly how Professor Messer teaches it.
-      </div>
-
-      {/* Input Row */}
+      <div className="teach-p">Type any IP and CIDR prefix — all subnet math computes instantly with visual bit mapping.</div>
       <div className="magic-input-row">
-        <input
-          className="magic-input"
-          value={ip}
-          onChange={e => setIp(e.target.value)}
-          placeholder="192.168.1.130"
-          spellCheck={false}
-        />
-        <span className="magic-input-slash">/</span>
-        <input
-          className="magic-cidr-input"
-          value={cidr}
-          onChange={e => setCidr(e.target.value.replace(/\D/g, "").slice(0, 2))}
-          placeholder="26"
-        />
-        <span style={{fontSize:12,color:"#00ff4155"}}>← type any IP and prefix</span>
+        <input className="magic-input" value={ip} onChange={e=>setIp(e.target.value)} placeholder="192.168.1.130" spellCheck={false}/>
+        <span style={{fontSize:20,color:"#00ff4166"}}>/</span>
+        <input className="magic-cidr-input" value={cidr} onChange={e=>setCidr(e.target.value.replace(/\D/g,"").slice(0,2))} placeholder="26"/>
+        <span style={{fontSize:12,color:"#00ff4155"}}>← type any valid IP and prefix</span>
       </div>
-
       {!r && <div className="magic-error">✗ Invalid input — enter a valid IP (e.g. 192.168.1.130) and prefix (1–32).</div>}
-
       {r && <>
-        {/* BIT MAP */}
-        <div style={{marginBottom:6}}>
-          <div className="teach-h2" style={{marginTop:0}}>BIT MAP — 32-BIT IP ADDRESS VISUALIZATION</div>
-          <div className="bit-legend">
-            <div className="bit-legend-item"><div className="bit-legend-swatch" style={{background:"rgba(0,255,65,0.15)",borderColor:"#00ff4166"}}/><span>Network bits ({r.cidrPrefix})</span></div>
-            <div className="bit-legend-item"><div className="bit-legend-swatch" style={{background:"rgba(0,204,255,0.08)",borderColor:"#00ccff44"}}/><span>Host bits ({r.hostBits})</span></div>
-          </div>
-          <div className="bit-grid">
-            {[0,1,2,3].map(octet => (
-              <div key={octet} style={{display:"flex",flexDirection:"column",gap:0}}>
-                <div className="bit-group">
-                  {[0,1,2,3,4,5,6,7].map(bit => {
-                    const globalBit = octet * 8 + bit;
-                    const isNet = globalBit < r.cidrPrefix;
-                    const val = r.ipBits[globalBit];
-                    return (
-                      <div key={bit} className={`bit-cell ${isNet ? "net" : "host"}`}>
-                        {val}
-                        <span className="bit-pos">{Math.pow(2, 7-bit)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="octet-val">{r.ip[octet]}</div>
-                <div className="octet-label">{octetLabels[octet]}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{fontSize:11,color:"#00ff4155",marginTop:4}}>
-            Each cell shows the bit value (0 or 1) and its positional value (128, 64, 32...). Green = network, Blue = host.
-          </div>
+        <div className="teach-h2" style={{marginTop:0}}>32-BIT VISUALIZATION</div>
+        <div className="bit-legend">
+          <div className="bit-legend-item"><div className="bit-legend-swatch" style={{background:"rgba(0,255,65,0.14)",borderColor:"#00ff4166"}}/><span>Network bits ({r.cidrPrefix})</span></div>
+          <div className="bit-legend-item"><div className="bit-legend-swatch" style={{background:"rgba(0,204,255,0.07)",borderColor:"#00ccff44"}}/><span>Host bits ({r.hostBits})</span></div>
         </div>
-
-        {/* STEP-BY-STEP */}
-        <div className="teach-h2">STEP-BY-STEP CALCULATION</div>
-        <div className="step-box">
-          <div className="step-box-title">// MAGIC_NUMBER_METHOD.exe</div>
-
-          <div className="step-line">
-            <span className="step-num">1</span>
-            <span className="step-text">
-              Subnet mask for <span className="step-highlight">/{r.cidrPrefix}</span> = <span className="step-highlight">{r.mask.join(".")}</span>
-              <br/>
-              <span style={{fontSize:11,color:"#00ff4155"}}>
-                ({r.cidrPrefix} network bits → {r.cidrPrefix < 8 ? "first" : r.cidrPrefix < 16 ? "second" : r.cidrPrefix < 24 ? "third" : "fourth"} octet is the "interesting" one)
-              </span>
-            </span>
-          </div>
-
-          <div className="step-line">
-            <span className="step-num">2</span>
-            <span className="step-text">
-              Interesting octet value = <span className="step-highlight">{r.mask[r.interestingOctet]}</span>
-              <br/>
-              <span className="step-calc">Magic Number = 256 − {r.mask[r.interestingOctet]} = <strong style={{color:"#ffaa00",fontSize:15}}>{r.magicNumber}</strong></span>
-              <br/>
-              <span style={{fontSize:11,color:"#00ff4155"}}>This is your block size — subnets repeat every {r.magicNumber} addresses in octet {r.interestingOctet + 1}</span>
-            </span>
-          </div>
-
-          <div className="step-line">
-            <span className="step-num">3</span>
-            <span className="step-text">
-              Count up in blocks of <span className="step-highlight">{r.magicNumber}</span> until you pass <span className="step-highlight">{r.ip[r.interestingOctet]}</span>:
-              <br/>
-              <div className="block-row" style={{marginTop:6}}>
-                {r.blocks.map(b => (
-                  <div key={b} className={`block-item ${b === r.networkInteresting ? "current-block" : ""}`}>
-                    {b}{b === r.networkInteresting ? " ←" : ""}
-                  </div>
-                ))}
+        <div className="bit-grid">
+          {[0,1,2,3].map(octet => (
+            <div key={octet} style={{display:"flex",flexDirection:"column"}}>
+              <div className="bit-group">
+                {[0,1,2,3,4,5,6,7].map(bit => {
+                  const gb = octet*8+bit;
+                  return (
+                    <div key={bit} className={`bit-cell ${gb<r.cidrPrefix?"net":"host"}`}>
+                      {r.ipBits[gb]}<span className="bit-pos">{Math.pow(2,7-bit)}</span>
+                    </div>
+                  );
+                })}
               </div>
-              <span style={{fontSize:11,color:"#00ff4155"}}>
-                {r.ip[r.interestingOctet]} falls in the <strong style={{color:"#00ff41"}}>{r.networkInteresting}</strong> block
-                (between {r.networkInteresting} and {Math.min(255, r.networkInteresting + r.magicNumber - 1)})
-              </span>
-            </span>
-          </div>
-
-          <div className="step-line">
-            <span className="step-num">4</span>
-            <span className="step-text">
-              <span className="step-highlight">Network address</span> = block start = <span className="step-highlight">{r.network.join(".")}</span>
-              <br/>
-              <span className="step-highlight">Broadcast address</span> = block end = <span className="step-highlight">{r.broadcast.join(".")}</span>
-              <br/>
-              <span style={{fontSize:11,color:"#00ff4155"}}>(Network + {r.magicNumber} − 1 = {r.networkInteresting} + {r.magicNumber} − 1 = {r.networkInteresting + r.magicNumber - 1})</span>
-            </span>
-          </div>
-
-          <div className="step-line">
-            <span className="step-num">5</span>
-            <span className="step-text">
-              <span className="step-highlight">First host</span> = {r.firstHost.join(".")} &nbsp;
-              <span className="step-highlight">Last host</span> = {r.lastHost.join(".")}
-              <br/>
-              <span className="step-calc">Usable hosts = 2^{r.hostBits} − 2 = {r.totalAddresses} − 2 = <strong style={{color:"#ffaa00"}}>{r.usableHosts}</strong></span>
-            </span>
-          </div>
-        </div>
-
-        {/* RESULTS GRID */}
-        <div className="teach-h2">COMPUTED VALUES</div>
-        <div className="magic-results">
-          {[
-            {label:"IP ADDRESS",val:r.ip.join("."),sub:`/${r.cidrPrefix}`},
-            {label:"SUBNET MASK",val:r.mask.join("."),sub:`Wildcard: ${r.wildcard.join(".")}`},
-            {label:"NETWORK ADDRESS",val:r.network.join("."),sub:"First address (not usable)"},
-            {label:"BROADCAST",val:r.broadcast.join("."),sub:"Last address (not usable)"},
-            {label:"FIRST HOST",val:r.firstHost.join("."),sub:"First usable host"},
-            {label:"LAST HOST",val:r.lastHost.join("."),sub:"Last usable host"},
-            {label:"USABLE HOSTS",val:r.usableHosts.toLocaleString(),sub:`2^${r.hostBits} − 2 = ${r.totalAddresses} − 2`},
-            {label:"MAGIC NUMBER",val:r.magicNumber,sub:`Block size (256 − ${r.mask[r.interestingOctet]})`},
-          ].map(c => (
-            <div className="magic-result-card" key={c.label}>
-              <div className="magic-result-label">{c.label}</div>
-              <div className="magic-result-val">{c.val}</div>
-              <div className="magic-result-sub">{c.sub}</div>
+              <div className="octet-val">{r.ip[octet]}</div>
+              <div className="octet-label">Octet {octet+1}</div>
             </div>
           ))}
         </div>
-
-        <div className="teach-tip">
-          The Magic Number (block size) is always 256 minus the value of the "interesting" octet in the subnet mask. Memorize this and you can subnet any /24–/30 in seconds — no binary conversion needed.
+        <div className="teach-h2">STEP-BY-STEP CALCULATION</div>
+        <div className="step-box">
+          {[
+            {n:1,text:<>Mask for <span className="step-highlight">/{r.cidrPrefix}</span> = <span className="step-highlight">{r.mask.join(".")}</span></>},
+            {n:2,text:<>Magic Number = 256 − {r.mask[r.interestingOctet]} = <span style={{color:"#ffaa00",fontSize:16,fontWeight:500}}>{r.magicNumber}</span> (block size in octet {r.interestingOctet+1})</>},
+            {n:3,text:<>Count in blocks of {r.magicNumber}: <div className="block-row">{r.blocks.map(b=><div key={b} className={`block-item ${b===r.networkInteresting?"current-block":""}`}>{b}{b===r.networkInteresting?" ←":""}</div>)}</div><span style={{fontSize:11,color:"#00ff4155"}}>{r.ip[r.interestingOctet]} falls in the {r.networkInteresting} block</span></>},
+            {n:4,text:<><span className="step-highlight">Network</span>: {r.network.join(".")} &nbsp;|&nbsp; <span className="step-highlight">Broadcast</span>: {r.broadcast.join(".")}</>},
+            {n:5,text:<><span className="step-highlight">First host</span>: {r.firstHost.join(".")} &nbsp;|&nbsp; <span className="step-highlight">Last host</span>: {r.lastHost.join(".")} &nbsp;|&nbsp; <span className="step-calc">Usable: 2^{r.hostBits}−2 = {r.usableHosts}</span></>},
+          ].map(s=>(
+            <div className="step-line" key={s.n}><span className="step-num">{s.n}</span><span className="step-text">{s.text}</span></div>
+          ))}
         </div>
+        <div className="teach-h2">COMPUTED VALUES</div>
+        <div className="magic-results">
+          {[["IP ADDRESS",r.ip.join("."),`/${r.cidrPrefix}`],["SUBNET MASK",r.mask.join("."),`Wildcard: ${r.wildcard.join(".")}`],["NETWORK",r.network.join("."),"First address (not usable)"],["BROADCAST",r.broadcast.join("."),"Last address (not usable)"],["FIRST HOST",r.firstHost.join("."),"First usable"],["LAST HOST",r.lastHost.join("."),"Last usable"],[`USABLE HOSTS`,r.usableHosts.toLocaleString(),`2^${r.hostBits} − 2`],["MAGIC NUMBER",r.magicNumber,`Block size (256 − ${r.mask[r.interestingOctet]})`]].map(([l,v,s])=>(
+            <div className="magic-result-card" key={l}>
+              <div className="magic-result-label">{l}</div>
+              <div className="magic-result-val">{v}</div>
+              <div className="magic-result-sub">{s}</div>
+            </div>
+          ))}
+        </div>
+        <div className="teach-tip">Magic Number = 256 minus the interesting octet of the mask. Count up in blocks of that size — your IP's block = your subnet.</div>
       </>}
     </div>
   );
 }
 
-// ── SUBNET MODULE ─────────────────────────────────────────────────────────────
+// ─── EXAM SIMULATOR ──────────────────────────────────────────────────────────
 
-function SubnetModule({ onBack }) {
-  const [tab, setTab] = useState("learn");
-  const [idx, setIdx] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
-  const q = subnetQuestions[idx];
-  const pick = (i) => { if(selected!==null)return; setSelected(i); if(i===q.answer)setScore(s=>s+1); };
-  const next = () => { if(idx+1>=subnetQuestions.length)setDone(true); else{setIdx(i=>i+1);setSelected(null);} };
-  const reset = () => { setIdx(0);setScore(0);setSelected(null);setDone(false); };
+const EXAM_DURATION = 60 * 60; // 60 minutes in seconds
+
+function ExamSimulator({ onHome }) {
+  const [phase, setPhase] = useState("intro"); // intro | exam | results
+  const [questions, setQuestions] = useState([]);
+  const [currentQ, setCurrentQ] = useState(0);
+  const [answers, setAnswers] = useState({}); // qIdx -> chosen answer index
+  const [flagged, setFlagged] = useState(new Set());
+  const [timeLeft, setTimeLeft] = useState(EXAM_DURATION);
+  const [progress] = useProgress();
+  const timerRef = useRef(null);
+
+  const startExam = (numQ) => {
+    // Shuffle and pick questions proportional to domain weights (matching real CCNA)
+    const weights = {
+      Subnetting: 15, Routing: 15, Switching: 15,
+      "IP Services": 12, IPv6: 10, Wireless: 10,
+      Security: 13, Automation: 10,
+    };
+    const pool = [];
+    Object.entries(ALL_QUESTIONS).forEach(([key, qs]) => {
+      const domainName = qs[0]?.domain;
+      const weight = weights[domainName] || 10;
+      const count = Math.max(1, Math.round((weight / 100) * numQ));
+      const shuffled = [...qs].sort(() => Math.random()-0.5);
+      pool.push(...shuffled.slice(0, count));
+    });
+    const final = pool.sort(() => Math.random()-0.5).slice(0, numQ);
+    setQuestions(final);
+    setAnswers({});
+    setFlagged(new Set());
+    setCurrentQ(0);
+    setTimeLeft(EXAM_DURATION);
+    setPhase("exam");
+  };
+
+  useEffect(() => {
+    if (phase !== "exam") return;
+    timerRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) { clearInterval(timerRef.current); setPhase("results"); return 0; }
+        return t-1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [phase]);
+
+  const formatTime = (s) => {
+    const m = Math.floor(s/60);
+    const sec = s%60;
+    return `${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+  };
+
+  const submitExam = () => {
+    clearInterval(timerRef.current);
+    // Record all answers to progress
+    questions.forEach((q, i) => {
+      if (answers[i] !== undefined) {
+        progress.record(q.id, q.domain, answers[i] === q.answer);
+      }
+    });
+    setPhase("results");
+  };
+
+  const toggleFlag = () => {
+    setFlagged(prev => {
+      const next = new Set(prev);
+      next.has(currentQ) ? next.delete(currentQ) : next.add(currentQ);
+      return next;
+    });
+  };
+
+  // ── INTRO SCREEN
+  if (phase === "intro") return (
+    <div>
+      <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:15,color:"#ffaa00",marginBottom:16,letterSpacing:2}}>
+        ⏱ EXAM SIMULATOR — CCNA 200-301
+      </div>
+      <div className="teach-p">Simulates the real CCNA exam experience: timed, question navigator, flag-for-review, and domain breakdown at the end.</div>
+      <div className="teach-info">The real CCNA 200-301 has 100–120 questions in 120 minutes. These practice sessions use ~40 questions in 60 minutes for focused drilling.</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:10,margin:"20px 0"}}>
+        {[{n:20,label:"Quick Drill",desc:"~20 min · Good for daily review"},{n:40,label:"Standard Exam",desc:"~60 min · Best exam simulation"},{n:60,label:"Extended Exam",desc:"~90 min · Deep coverage"}].map(opt => (
+          <div key={opt.n} className="module-card" style={{cursor:"pointer"}} onClick={()=>startExam(opt.n)}>
+            <div className="module-icon" style={{fontSize:22}}>⏱</div>
+            <div className="module-title" style={{color:"#ffaa00",fontFamily:"'Orbitron',sans-serif",fontSize:13}}>{opt.label}</div>
+            <div className="module-desc">{opt.desc}</div>
+            <div className="module-tag" style={{color:"#ffaa0088",borderColor:"#ffaa0033"}}>{opt.n} QUESTIONS</div>
+          </div>
+        ))}
+      </div>
+      <div className="teach-h2" style={{marginTop:16}}>DOMAIN WEIGHTING</div>
+      <table className="teach-table">
+        <thead><tr><th>Domain</th><th>Weight</th><th>Topics</th></tr></thead>
+        <tbody>
+          {[["Network Fundamentals","15%","OSI, cables, topologies, Ethernet"],["Network Access","15%","VLANs, STP, EtherChannel, wireless"],["IP Connectivity","15%","Routing protocols, static routes, OSPF"],["IP Services","12%","NAT, DHCP, NTP, SNMP, DNS"],["Security Fundamentals","13%","ACLs, AAA, VPN, port security"],["Automation","10%","SDN, REST, Ansible, JSON/YAML"],["IPv6","10%","Addressing, routing, NDP, SLAAC"],["Wireless","10%","Standards, WLC, CAPWAP, WPA"]].map(([d,w,t]) => (
+            <tr key={d}><td style={{color:"#00ff41"}}>{d}</td><td style={{color:"#ffaa00"}}>{w}</td><td>{t}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{marginTop:16}}>
+        <button className="btn btn-danger" onClick={onHome}>← BACK TO HOME</button>
+      </div>
+    </div>
+  );
+
+  // ── RESULTS SCREEN
+  if (phase === "results") {
+    const totalAnswered = Object.keys(answers).length;
+    const totalCorrect = Object.entries(answers).filter(([i,a]) => questions[i] && a===questions[i].answer).length;
+    const pct = Math.round((totalCorrect/questions.length)*100);
+    const passed = pct >= 82; // CCNA passing ~825/1000
+
+    const domainResults = {};
+    questions.forEach((q,i) => {
+      if (!domainResults[q.domain]) domainResults[q.domain] = { total:0, correct:0 };
+      domainResults[q.domain].total++;
+      if (answers[i]===q.answer) domainResults[q.domain].correct++;
+    });
+
+    return (
+      <div>
+        <div className="result-screen" style={{paddingBottom:0}}>
+          <div style={{fontSize:11,color:"#ffaa0088",letterSpacing:3,marginBottom:8}}>EXAM COMPLETE</div>
+          <div className="result-score" style={{color:passed?"#00ff41":"#ff4444"}}>{pct}%</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:13,color:passed?"#00ff41":"#ff4444",margin:"10px 0",letterSpacing:2}}>
+            {passed?"PASS — CCNA READY":"FAIL — KEEP STUDYING"}
+          </div>
+          <div style={{fontSize:13,color:"#00ff4188",marginBottom:4}}>{totalCorrect}/{questions.length} correct · {totalAnswered} answered</div>
+          <div style={{fontSize:12,color:"#00ff4155",marginBottom:20}}>CCNA passing score ≈ 825/1000 (~82%)</div>
+        </div>
+
+        <div className="teach-h2">PERFORMANCE BY DOMAIN</div>
+        <div className="exam-result-grid">
+          {Object.entries(domainResults).map(([domain,{total,correct}]) => {
+            const dpct = Math.round((correct/total)*100);
+            const meta = DOMAIN_META[domain] || { color:"#00ff41" };
+            return (
+              <div className="exam-domain-card" key={domain}>
+                <div className="exam-domain-name">{domain}</div>
+                <div className="exam-domain-score" style={{color:meta.color}}>{dpct}%</div>
+                <div className="exam-domain-bar"><div className="exam-domain-fill" style={{width:`${dpct}%`,background:dpct>=80?meta.color:dpct>=60?"#ffaa00":"#ff4444"}}/></div>
+                <div style={{fontSize:11,color:"#00ff4155"}}>{correct}/{total} correct</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="teach-h2">QUESTION REVIEW</div>
+        <div style={{display:"grid",gap:8}}>
+          {questions.map((q,i) => {
+            const userAnswer = answers[i];
+            const correct = userAnswer===q.answer;
+            const answered = userAnswer !== undefined;
+            return (
+              <div key={i} style={{border:`1px solid ${correct?"#00ff4133":answered?"#ff333333":"#00ff4122"}`,padding:"10px 14px",background:correct?"rgba(0,255,65,0.02)":answered?"rgba(255,51,51,0.03)":"transparent"}}>
+                <div style={{fontSize:12,color:correct?"#00ff41":answered?"#ff6666":"#ffaa00",marginBottom:4}}>
+                  {correct?"✓":answered?"✗":"⊘"} Q{i+1} [{q.domain}]
+                </div>
+                <div style={{fontSize:12,color:"#00ff41aa",marginBottom:6}}>{q.q}</div>
+                {answered && !correct && <div style={{fontSize:11,color:"#ff888888"}}>Your answer: {q.choices[userAnswer]}</div>}
+                <div style={{fontSize:11,color:"#00ff4188"}}>Correct: {q.choices[q.answer]}</div>
+                {answered && !correct && <div style={{fontSize:11,color:"#00ff4155",marginTop:4}}>{q.explain}</div>}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
+          <button className="btn btn-gold" onClick={()=>startExam(questions.length)}>RETAKE</button>
+          <button className="btn btn-danger" onClick={onHome}>← HOME</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── EXAM IN PROGRESS
+  const q = questions[currentQ];
+  const isFlagged = flagged.has(currentQ);
+  const danger = timeLeft < 300;
 
   return (
     <div>
-      <ModuleTabs tabs={[{id:"learn",label:"📖 LEARN — Subnetting & IP"},{id:"magic",label:"🔢 MAGIC NUMBER CALC"},{id:"drill",label:"🎯 SUBNET DRILL"}]} active={tab} onSelect={setTab} />
+      <div className="exam-header">
+        <div>
+          <div style={{fontSize:10,color:"#ffaa0077",letterSpacing:2,marginBottom:2}}>TIME REMAINING</div>
+          <div className={`exam-timer ${danger?"danger":""}`}>{formatTime(timeLeft)}</div>
+        </div>
+        <div>
+          <div className="exam-question-counter">Question {currentQ+1} of {questions.length}</div>
+          <div style={{fontSize:11,color:"#ffaa0055",marginTop:2}}>{Object.keys(answers).length} answered · {flagged.size} flagged</div>
+        </div>
+        <button className={`exam-flag-btn ${isFlagged?"flagged":""}`} onClick={toggleFlag}>
+          {isFlagged?"⚑ FLAGGED":"⚐ FLAG FOR REVIEW"}
+        </button>
+      </div>
+
+      <div style={{display:"flex",gap:14,marginBottom:14,flexWrap:"wrap"}}>
+        <div style={{flex:1,minWidth:200}}>
+          <div style={{fontSize:11,color:DOMAIN_META[q.domain]?.color||"#00ff41",marginBottom:8,letterSpacing:1}}>[{q.domain}]</div>
+          <div style={{fontSize:14,color:"#00ff41cc",lineHeight:1.85,marginBottom:14}}>{q.q}</div>
+          <div className="answer-grid">
+            {q.choices.map((c,i) => (
+              <button key={i}
+                className={`answer-btn ${answers[currentQ]===i?(i===q.answer?"correct":"wrong"):""}`}
+                onClick={()=>setAnswers(prev=>({...prev,[currentQ]:i}))}>
+                [{String.fromCharCode(65+i)}] {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        <button className="btn" disabled={currentQ===0} onClick={()=>setCurrentQ(i=>i-1)}>‹ PREV</button>
+        <button className="btn" disabled={currentQ>=questions.length-1} onClick={()=>setCurrentQ(i=>i+1)}>NEXT ›</button>
+        <button className="btn btn-gold" style={{marginLeft:"auto"}} onClick={submitExam}>SUBMIT EXAM</button>
+      </div>
+
+      <div style={{fontSize:11,color:"#00ff4155",marginBottom:6,letterSpacing:1}}>QUESTION NAVIGATOR</div>
+      <div className="exam-nav">
+        {questions.map((_,i) => (
+          <button key={i}
+            className={`exam-q-dot ${i===currentQ?"current":""} ${flagged.has(i)?"flagged":""} ${answers[i]!==undefined?"answered":""}`}
+            onClick={()=>setCurrentQ(i)}>
+            {i+1}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── PROGRESS TRACKER ────────────────────────────────────────────────────────
+
+function ProgressTracker({ onHome }) {
+  const [progress] = useProgress();
+  const domainStats = progress.getDomainStats();
+  const weakSpots = progress.getWeakSpots();
+  const streak = progress.getStreak();
+  const totalAttempts = Object.values(progress.data).reduce((s,v)=>s+v.attempts,0);
+  const totalCorrect = Object.values(progress.data).reduce((s,v)=>s+v.correct,0);
+  const overall = totalAttempts>0 ? Math.round((totalCorrect/totalAttempts)*100) : 0;
+
+  return (
+    <div className="progress-page">
+      <div className="progress-header">// PERFORMANCE DASHBOARD</div>
+
+      <div style={{display:"flex",gap:12,marginBottom:16,flexWrap:"wrap"}}>
+        <div style={{border:"1px solid #00ccff44",padding:"12px 20px",background:"rgba(0,204,255,0.03)",textAlign:"center",minWidth:120}}>
+          <div style={{fontSize:10,color:"#00ccff55",letterSpacing:2,marginBottom:4}}>OVERALL</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:32,color:overall>=80?"#00ff41":overall>=60?"#ffaa00":"#ff4444"}}>{overall}%</div>
+          <div style={{fontSize:11,color:"#00ccff55"}}>{totalCorrect}/{totalAttempts} correct</div>
+        </div>
+        <div style={{border:"1px solid #ffdd0033",padding:"12px 20px",background:"rgba(255,221,0,0.02)",textAlign:"center",minWidth:120}}>
+          <div style={{fontSize:10,color:"#ffdd0055",letterSpacing:2,marginBottom:4}}>STREAK</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:32,color:"#ffdd00"}}>{streak}</div>
+          <div style={{fontSize:11,color:"#ffdd0055"}}>consecutive ✓</div>
+        </div>
+        <div style={{border:"1px solid #00ff4133",padding:"12px 20px",background:"rgba(0,255,65,0.02)",textAlign:"center",minWidth:120}}>
+          <div style={{fontSize:10,color:"#00ff4155",letterSpacing:2,marginBottom:4}}>QUESTIONS</div>
+          <div style={{fontFamily:"'Orbitron',sans-serif",fontSize:32,color:"#00ff41"}}>{totalAttempts}</div>
+          <div style={{fontSize:11,color:"#00ff4155"}}>total attempts</div>
+        </div>
+      </div>
+
+      <div className="teach-h2" style={{marginTop:0}}>PERFORMANCE BY DOMAIN</div>
+      <div className="progress-grid">
+        {Object.entries(DOMAIN_META).map(([domain,meta]) => {
+          const stats = domainStats[domain] || {attempts:0,correct:0};
+          const pct = stats.attempts>0 ? Math.round((stats.correct/stats.attempts)*100) : null;
+          const fillClass = pct===null?"":pct>=80?"":"warn"+(pct<60?" danger":"");
+          return (
+            <div className="progress-card" key={domain} style={{borderColor:meta.color+"33"}}>
+              <div className="progress-card-title" style={{color:meta.color+"99"}}>{meta.label}</div>
+              {pct===null
+                ? <div style={{fontSize:12,color:"#00ff4133",marginTop:8}}>No data yet</div>
+                : <>
+                    <div className="progress-pct" style={{color:pct>=80?meta.color:pct>=60?"#ffaa00":"#ff4444"}}>{pct}%</div>
+                    <div className="progress-bar-wrap" style={{marginTop:6}}>
+                      <div className="progress-bar-fill" style={{width:`${pct}%`,background:pct>=80?meta.color:pct>=60?"#ffaa00":"#ff4444"}}/>
+                    </div>
+                    <div className="progress-attempts">{stats.correct}/{stats.attempts} correct</div>
+                  </>
+              }
+            </div>
+          );
+        })}
+      </div>
+
+      {weakSpots.length > 0 && (
+        <>
+          <div className="teach-h2">WEAK SPOTS — NEEDS REVIEW</div>
+          <div className="weak-spot-list">
+            <div className="weak-spot-title">⚠ QUESTIONS YOU FREQUENTLY MISS</div>
+            {weakSpots.map(ws => {
+              const q = EXAM_POOL.find(x=>x.id===ws.id);
+              return q ? (
+                <div className="weak-spot-item" key={ws.id}>
+                  <span className="weak-spot-pct">{ws.pct}%</span>
+                  <div>
+                    <div style={{fontSize:12,color:"#ff8888aa"}}>[{ws.domain}] {q.q.slice(0,70)}{q.q.length>70?"...":""}</div>
+                    <div style={{fontSize:11,color:"#ff444466"}}>{ws.attempts} attempts</div>
+                  </div>
+                </div>
+              ) : null;
+            })}
+          </div>
+        </>
+      )}
+
+      {totalAttempts === 0 && (
+        <div className="teach-info">No data yet — complete some drills or an exam to see your performance tracked here.</div>
+      )}
+
+      <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
+        <button className="btn btn-danger" style={{fontSize:11}} onClick={()=>{if(window.confirm("Reset all progress data?"))progress.reset();}}>RESET DATA</button>
+        <button className="btn btn-info" onClick={onHome}>← HOME</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── TEACH CONTENT ────────────────────────────────────────────────────────────
+
+function IPServicesLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// IP SERVICES: NAT, DHCP, DNS, NTP, SNMP</div>
+      <div className="teach-p">IP Services are the supporting protocols that make networks usable. They handle address translation, automatic IP assignment, name resolution, time synchronization, and monitoring.</div>
+
+      <div className="teach-h2">NAT — NETWORK ADDRESS TRANSLATION</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Static NAT</div><div className="teach-card-body">One-to-one permanent mapping. Inside local ↔ inside global. Used for servers needing a consistent public IP.</div></div>
+        <div className="teach-card"><div className="teach-card-title">Dynamic NAT</div><div className="teach-card-body">Pool of public IPs shared among private hosts. Mapping is temporary. No port sharing — limited scalability.</div></div>
+        <div className="teach-card"><div className="teach-card-title">PAT / NAT Overload</div><div className="teach-card-body">Many private IPs → one public IP using unique port numbers. Most common in homes/offices. Tracks sessions by port.</div></div>
+        <div className="teach-card"><div className="teach-card-title">NAT Terminology</div><div className="teach-card-body">Inside Local = private host IP. Inside Global = public IP for host. Outside Global = destination IP. Outside Local = rare.</div></div>
+      </div>
+      <div className="teach-code">{`! Static NAT
+ip nat inside source static 192.168.1.10 203.0.113.10
+interface gi0/0
+ ip nat inside
+interface gi0/1
+ ip nat outside
+
+! PAT (overload)
+ip nat inside source list 1 interface gi0/1 overload
+access-list 1 permit 192.168.1.0 0.0.0.255`}</div>
+      <div className="teach-tip">PAT = NAT Overload. The exam uses both terms. When you see "many-to-one NAT" or "port numbers used for translation" → PAT.</div>
+
+      <div className="teach-h2">DHCP</div>
+      <div className="teach-p">DORA process: <strong>D</strong>iscover → <strong>O</strong>ffer → <strong>R</strong>equest → <strong>A</strong>cknowledge. Client broadcasts, server responds.</div>
+      <div className="teach-code">{`! DHCP Server config
+ip dhcp excluded-address 192.168.1.1 192.168.1.10
+ip dhcp pool OFFICE
+ network 192.168.1.0 255.255.255.0
+ default-router 192.168.1.1
+ dns-server 8.8.8.8
+ lease 7
+
+! DHCP Relay (ip helper-address)
+interface gi0/0
+ ip helper-address 10.0.0.5  ! Forward DHCP broadcasts to server`}</div>
+      <div className="teach-tip">If clients get 169.254.x.x addresses → DHCP failure (APIPA). Check: DHCP server reachable? Helper-address configured? Pool not exhausted?</div>
+
+      <div className="teach-h2">KEY PORT NUMBERS</div>
+      <table className="teach-table">
+        <thead><tr><th>Protocol</th><th>Port</th><th>Transport</th><th>Purpose</th></tr></thead>
+        <tbody>
+          {[["DNS","53","UDP/TCP","Name resolution"],["DHCP","67 (server) / 68 (client)","UDP","Address assignment"],["HTTP","80","TCP","Web (unencrypted)"],["HTTPS","443","TCP","Web (encrypted)"],["Telnet","23","TCP","Remote CLI (insecure)"],["SSH","22","TCP","Remote CLI (secure)"],["SNMP","161/162","UDP","Network monitoring"],["NTP","123","UDP","Time synchronization"],["FTP","20/21","TCP","File transfer"],["SMTP","25","TCP","Email sending"],["TFTP","69","UDP","Trivial file transfer"],["Syslog","514","UDP","Log messages"]].map(r=><tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td style={{color:"#ffaa00"}}>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-tip">Port numbers are heavily tested. Memorize: 22(SSH), 23(Telnet), 25(SMTP), 53(DNS), 67/68(DHCP), 80(HTTP), 110(POP3), 443(HTTPS).</div>
+
+      <div className="teach-h2">NTP & SNMP</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">NTP (port 123)</div><div className="teach-card-body">Synchronizes device clocks. Stratum 1 = directly connected to reference clock. Each hop adds 1. Cisco default: NTP stratum 8. Config: ntp server x.x.x.x</div></div>
+        <div className="teach-card"><div className="teach-card-title">SNMP (ports 161/162)</div><div className="teach-card-body">Manager polls agents (GET/SET). Agents send traps on events. v1/v2c use community strings. SNMPv3 adds encryption + authentication.</div></div>
+      </div>
+    </div>
+  );
+}
+
+function IPv6Learn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// IPv6 ADDRESSING & ROUTING</div>
+      <div className="teach-p">IPv6 uses 128-bit addresses (vs IPv4's 32-bit) to solve address exhaustion. Written as 8 groups of 4 hex digits separated by colons.</div>
+
+      <div className="teach-h2">ADDRESS TYPES</div>
+      <table className="teach-table">
+        <thead><tr><th>Type</th><th>Prefix</th><th>Scope</th><th>Notes</th></tr></thead>
+        <tbody>
+          {[["Global Unicast","2000::/3","Internet-routable","Equivalent to public IPv4"],["Unique Local","fc00::/7","Private","≈ RFC 1918 private space"],["Link-Local","fe80::/10","Link only","Auto-configured, not routable, always present"],["Loopback","::1/128","Local only","≡ 127.0.0.1"],["Unspecified","::","N/A","Used in DHCP before address assigned"],["Multicast","ff00::/8","Group","Replaces broadcast in IPv6"],["Solicited-Node Multicast","ff02::1:ff00:0/104","Link","Used by NDP for address resolution"]].map(r=><tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td style={{color:"#aa88ff"}}>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}
+        </tbody>
+      </table>
+
+      <div className="teach-h2">ABBREVIATION RULES</div>
+      <div className="teach-code">{`Full:       2001:0db8:0000:0000:0000:0000:0000:0001
+Rule 1 — Drop leading zeros per group:
+            2001:db8:0:0:0:0:0:1
+Rule 2 — Replace ONE consecutive all-zero group sequence with :::
+            2001:db8::1
+
+Examples:
+  fe80:0000:0000:0000:0200:5eff:fe00:5301
+  → fe80::200:5eff:fe00:5301
+
+  0000:0000:0000:0000:0000:0000:0000:0001
+  → ::1  (loopback)`}</div>
+      <div className="teach-tip">:: can only appear ONCE in an address. If you see :: twice — it's invalid. The exam may show trick addresses to identify.</div>
+
+      <div className="teach-h2">NEIGHBOR DISCOVERY PROTOCOL (NDP)</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Replaces ARP</div><div className="teach-card-body">Uses ICMPv6 Neighbor Solicitation (NS) and Neighbor Advertisement (NA) to resolve IPv6 → MAC. No broadcast — uses multicast.</div></div>
+        <div className="teach-card"><div className="teach-card-title">Router Discovery</div><div className="teach-card-body">Hosts send Router Solicitation (RS). Routers reply with Router Advertisement (RA) containing prefix info for SLAAC.</div></div>
+      </div>
+
+      <div className="teach-h2">SLAAC vs DHCPv6</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">SLAAC (Stateless)</div><div className="teach-card-body">Host uses prefix from RA + generates its own 64-bit interface ID (from MAC via EUI-64 or random). No server needed. The "M" flag in RA = 0.</div></div>
+        <div className="teach-card"><div className="teach-card-title">DHCPv6 (Stateful)</div><div className="teach-card-body">Works like DHCPv4 but for IPv6. Server assigns full address. "M" flag in RA = 1. Useful when you need address tracking.</div></div>
+      </div>
+
+      <div className="teach-h2">IPv6 ROUTING CONFIGURATION</div>
+      <div className="teach-code">{`! Enable IPv6 routing
+ipv6 unicast-routing
+
+! Configure interface
+interface gi0/0
+ ipv6 address 2001:db8:1::1/64
+ ipv6 address fe80::1 link-local
+ no shutdown
+
+! Static route
+ipv6 route 2001:db8:2::/48 2001:db8:1::2
+
+! OSPFv3
+ipv6 router ospf 1
+ router-id 1.1.1.1
+interface gi0/0
+ ipv6 ospf 1 area 0`}</div>
+    </div>
+  );
+}
+
+function WirelessLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// WIRELESS — 802.11 & WLC ARCHITECTURE</div>
+
+      <div className="teach-h2">802.11 STANDARDS COMPARISON</div>
+      <table className="teach-table">
+        <thead><tr><th>Standard</th><th>Band</th><th>Max Speed</th><th>Notes</th></tr></thead>
+        <tbody>
+          {[["802.11a","5 GHz","54 Mbps","5GHz only — less interference, shorter range"],["802.11b","2.4 GHz","11 Mbps","First widely adopted, slow, legacy"],["802.11g","2.4 GHz","54 Mbps","Backward compatible with 802.11b"],["802.11n (Wi-Fi 4)","2.4 + 5 GHz","600 Mbps","MIMO, dual-band, channel bonding"],["802.11ac (Wi-Fi 5)","5 GHz only","~3.5 Gbps","MU-MIMO, wider channels (80/160 MHz)"],["802.11ax (Wi-Fi 6)","2.4+5+6 GHz","~9.6 Gbps","OFDMA, BSS coloring, improved density"]].map(r=><tr key={r[0]}><td style={{color:"#ff88aa"}}>{r[0]}</td><td>{r[1]}</td><td style={{color:"#00ff41"}}>{r[2]}</td><td>{r[3]}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-tip">2.4 GHz: 3 non-overlapping channels (1,6,11). Better range, more interference. 5 GHz: 24+ non-overlapping channels. Faster, shorter range, less interference.</div>
+
+      <div className="teach-h2">AUTONOMOUS vs LIGHTWEIGHT AP ARCHITECTURE</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Autonomous APs</div><div className="teach-card-body">Self-contained — each AP configured independently. Simple for small deployments. No central controller. Roaming is complex.</div></div>
+        <div className="teach-card"><div className="teach-card-title">Lightweight APs (LAP) + WLC</div><div className="teach-card-body">APs are "dumb" — all intelligence in WLC. CAPWAP tunnel carries traffic. Centralized config, seamless roaming, RF management.</div></div>
+      </div>
+
+      <div className="teach-h2">CAPWAP PROTOCOL</div>
+      <div className="teach-p">CAPWAP (Control And Provisioning of Wireless Access Points) creates a tunnel between LAPs and WLC.</div>
+      <div className="teach-code">{`CAPWAP uses two tunnels:
+1. Control channel  (UDP 5246) — Management, config, stats
+2. Data channel     (UDP 5247) — Client data traffic
+
+AP boots → discovers WLC via:
+  1. DHCP option 43 (WLC IP)
+  2. DNS (cisco-capwap-controller)
+  3. Broadcast (same subnet)
+  4. Previously remembered WLC`}</div>
+
+      <div className="teach-h2">WIRELESS SECURITY STANDARDS</div>
+      <table className="teach-table">
+        <thead><tr><th>Standard</th><th>Encryption</th><th>Auth</th><th>Status</th></tr></thead>
+        <tbody>
+          {[["WEP","RC4 (broken)","Open/Shared Key","⛔ Never use"],["WPA","TKIP","PSK or 802.1X","⚠ Deprecated"],["WPA2","AES-CCMP","PSK or 802.1X","✓ Current standard"],["WPA3","AES-GCMP","SAE or 802.1X","✓✓ Most secure"]].map(r=><tr key={r[0]}><td style={{color:r[3].includes("⛔")?"#ff4444":r[3].includes("⚠")?"#ffaa00":"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-tip">WPA3 uses SAE (Simultaneous Authentication of Equals) instead of PSK — resistant to offline dictionary attacks. Enterprise wireless uses 802.1X + RADIUS for per-user auth.</div>
+
+      <div className="teach-h2">WIRELESS TERMINOLOGY</div>
+      <div className="teach-cols-3">
+        {[["BSS","Basic Service Set: single AP + clients. Each BSS has a BSSID (AP's MAC address)."],["ESS","Extended Service Set: multiple APs sharing same SSID. Enables seamless roaming."],["IBSS","Independent BSS: ad-hoc mode, peer-to-peer. No AP required."],["SSID","Service Set Identifier: the wireless network name (up to 32 chars)."],["BSSID","MAC address of the AP radio. Unique per AP."],["RSSI","Received Signal Strength Indicator: signal power. Higher (less negative) = better."]].map(([t,d])=>(
+          <div className="teach-card" key={t}><div className="teach-card-title">{t}</div><div className="teach-card-body">{d}</div></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AutomationLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// NETWORK AUTOMATION & PROGRAMMABILITY</div>
+      <div className="teach-p">Modern networks use software to automate configuration, reduce human error, and respond faster. The CCNA tests conceptual knowledge — not deep coding skills.</div>
+
+      <div className="teach-h2">TRADITIONAL vs SDN</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Traditional Networking</div><div className="teach-card-body">Control plane + data plane both on each device. Each device configured independently via CLI. Slow to change. Human error-prone.</div></div>
+        <div className="teach-card"><div className="teach-card-title">SDN Architecture</div><div className="teach-card-body">Control plane centralized in a controller. Devices only handle data plane forwarding. Controller has full network view. Faster, consistent changes.</div></div>
+      </div>
+      <div className="teach-code">{`SDN Interfaces:
+Northbound Interface (NBI):
+  Controller ↔ Applications (REST API, JSON)
+  e.g. your Python script talks to DNA Center API
+
+Southbound Interface (SBI):
+  Controller ↔ Network Devices
+  e.g. OpenFlow, NETCONF, RESTCONF, SSH`}</div>
+
+      <div className="teach-h2">DATA FORMATS</div>
+      <div className="teach-cols-3">
+        <div className="teach-card">
+          <div className="teach-card-title">JSON</div>
+          <div className="teach-card-body">Key-value pairs, {"{}"} objects, [] arrays. Most common in REST APIs. Human-readable.</div>
+          <div className="teach-code" style={{fontSize:11,padding:"6px 8px",marginTop:6}}>{`{
+  "hostname": "R1",
+  "interfaces": [
+    {"name": "Gi0/0",
+     "ip": "10.0.0.1"}
+  ]
+}`}</div>
+        </div>
+        <div className="teach-card">
+          <div className="teach-card-title">XML</div>
+          <div className="teach-card-body">Tag-based markup. Used by NETCONF. More verbose than JSON. Self-describing.</div>
+          <div className="teach-code" style={{fontSize:11,padding:"6px 8px",marginTop:6}}>{`<interface>
+  <name>Gi0/0</name>
+  <ip>10.0.0.1</ip>
+</interface>`}</div>
+        </div>
+        <div className="teach-card">
+          <div className="teach-card-title">YAML</div>
+          <div className="teach-card-body">Indentation-based. Used in Ansible playbooks. Very human-readable. No brackets.</div>
+          <div className="teach-code" style={{fontSize:11,padding:"6px 8px",marginTop:6}}>{`hostname: R1
+interfaces:
+  - name: Gi0/0
+    ip: 10.0.0.1`}</div>
+        </div>
+      </div>
+
+      <div className="teach-h2">REST API METHODS</div>
+      <table className="teach-table">
+        <thead><tr><th>Method</th><th>Action</th><th>Example</th></tr></thead>
+        <tbody>
+          {[["GET","Retrieve data","GET /api/v1/interfaces"],["POST","Create new resource","POST /api/v1/vlans"],["PUT","Replace entire resource","PUT /api/v1/vlan/10"],["PATCH","Update part of resource","PATCH /api/v1/interface/gi0"],["DELETE","Remove resource","DELETE /api/v1/vlan/10"]].map(r=><tr key={r[0]}><td style={{color:"#44aaff",fontWeight:500}}>{r[0]}</td><td>{r[1]}</td><td style={{color:"#00ff4188"}}>{r[2]}</td></tr>)}
+        </tbody>
+      </table>
+
+      <div className="teach-h2">AUTOMATION TOOLS</div>
+      <table className="teach-table">
+        <thead><tr><th>Tool</th><th>Language</th><th>Agent?</th><th>Use Case</th></tr></thead>
+        <tbody>
+          {[["Ansible","YAML playbooks","Agentless (SSH)","Config management, multi-vendor"],["Puppet","Ruby/DSL","Agent required","Declarative, state enforcement"],["Chef","Ruby","Agent required","Infrastructure as code"],["Terraform","HCL","Agentless","Cloud infrastructure provisioning"],["Python + Netmiko","Python","Agentless (SSH)","Script-based automation"]].map(r=><tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td style={{color:r[2]==="Agentless (SSH)"?"#00ff41":"#ffaa00"}}>{r[2]}</td><td>{r[3]}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-tip">Ansible is the most CCNA-tested automation tool. Key facts: agentless (uses SSH), playbooks in YAML, idempotent, most popular for network automation.</div>
+
+      <div className="teach-h2">CISCO DNA CENTER (CATALYST CENTER)</div>
+      <div className="teach-p">Cisco's intent-based networking controller for campus networks. Provides a GUI and REST API for network management, automation, and analytics. Replaces traditional CLI-per-device management.</div>
+    </div>
+  );
+}
+
+function SecurityLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// SECURITY FUNDAMENTALS</div>
+
+      <div className="teach-h2">ACL TYPES & PLACEMENT</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Standard ACL (1-99, 1300-1999)</div><div className="teach-card-body">Matches source IP only. Place CLOSE TO DESTINATION to avoid over-blocking. Simple but limited.</div></div>
+        <div className="teach-card"><div className="teach-card-title">Extended ACL (100-199, 2000-2699)</div><div className="teach-card-body">Matches src+dst IP, protocol, port. Place CLOSE TO SOURCE — stops traffic early. Much more flexible.</div></div>
+      </div>
+      <div className="teach-code">{`! ACL Rules:
+! 1. Processed top-to-bottom — first match wins
+! 2. Implicit deny all at the end (invisible)
+! 3. Always add permit if you don't want to block everything
+
+! Standard ACL example
+access-list 10 deny   192.168.1.0 0.0.0.255
+access-list 10 permit any
+
+! Extended ACL — block Telnet from 10.0.0.0/8
+access-list 110 deny   tcp 10.0.0.0 0.255.255.255 any eq 23
+access-list 110 permit ip any any
+
+! Apply to interface
+interface gi0/0
+ ip access-group 110 in   ! Extended: close to source = inbound`}</div>
+      <div className="teach-tip">Wildcard masks are the inverse of subnet masks. 0.0.0.255 = match any host in the /24. 0.0.0.0 = match exact IP. 255.255.255.255 = match any IP.</div>
+
+      <div className="teach-h2">AAA FRAMEWORK</div>
+      <table className="teach-table">
+        <thead><tr><th>Component</th><th>Question Answered</th><th>Example</th></tr></thead>
+        <tbody>
+          {[["Authentication","Who are you?","Username + password verified"],["Authorization","What can you do?","Read-only vs full admin access"],["Accounting","What did you do?","Log of all commands executed"]].map(r=><tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">RADIUS</div><div className="teach-card-body">UDP ports 1812/1813. Encrypts password only. Combines Authentication + Authorization in one step. Common for wireless/network access.</div></div>
+        <div className="teach-card"><div className="teach-card-title">TACACS+</div><div className="teach-card-body">TCP port 49. Encrypts ENTIRE packet. Separates Authentication, Authorization, Accounting. Preferred for device administration (Cisco proprietary).</div></div>
+      </div>
+      <div className="teach-tip">RADIUS = remote user access (wireless, VPN). TACACS+ = network device administration. TACACS+ is more secure (full encryption, separated AAA).</div>
+
+      <div className="teach-h2">LAYER 2 SECURITY THREATS & MITIGATIONS</div>
+      <table className="teach-table">
+        <thead><tr><th>Attack</th><th>How it Works</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          {[["MAC Flooding","Floods CAM table forcing switch to broadcast","Port Security — limit MACs per port"],["VLAN Hopping","Exploits DTP to access other VLANs","Disable DTP, change native VLAN, dedicated trunks"],["ARP Spoofing","Fake ARP replies poison ARP caches","Dynamic ARP Inspection (DAI)"],["DHCP Spoofing","Rogue DHCP server gives bad IPs","DHCP Snooping — trust only uplink ports"],["STP Attack","Injects BPDUs to become root bridge","BPDU Guard on access ports, root guard on distribution"]].map(r=><tr key={r[0]}><td style={{color:"#ff4444"}}>{r[0]}</td><td>{r[1]}</td><td style={{color:"#00ff41"}}>{r[2]}</td></tr>)}
+        </tbody>
+      </table>
+
+      <div className="teach-h2">VPN TYPES</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Site-to-Site VPN</div><div className="teach-card-body">Connects two networks permanently. Uses IPsec. Both endpoints are routers/firewalls. Transparent to end users.</div></div>
+        <div className="teach-card"><div className="teach-card-title">Remote Access VPN</div><div className="teach-card-body">Individual users connect to the corporate network. SSL/TLS (AnyConnect) or IPsec. User needs VPN client software.</div></div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MODULE WRAPPERS ──────────────────────────────────────────────────────────
+
+function SubnetModule({ onHome }) {
+  const [tab, setTab] = useState("learn");
+  return (
+    <div>
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"magic",label:"🔢 Magic Calc"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
       <div className="mod-content">
         {tab==="learn" && <SubnetLearn />}
         {tab==="magic" && <MagicNumberCalc />}
-        {tab==="drill" && (done
-          ? <ResultScreen score={score} total={subnetQuestions.length} onRetry={reset} onLearn={()=>setTab("magic")} />
-          : <div>
-              <StatRow stats={[{val:idx+1,label:"QUESTION"},{val:subnetQuestions.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
-              <div className="progress-bar"><div className="progress-fill" style={{width:`${(idx/subnetQuestions.length)*100}%`}}/></div>
-              <div className="subnet-display flicker">{q.ip}</div>
-              <div style={{fontSize:12,color:"#00ff41aa",marginBottom:12,lineHeight:1.8}}><span style={{color:"#00ff4155"}}>QUERY &gt; </span>{q.q}</div>
-              <div className="answer-grid">
-                {q.choices.map((c,i) => <button key={i} className={`answer-btn ${selected===i?(i===q.answer?"correct":"wrong"):selected!==null&&i===q.answer?"correct":""}`} onClick={()=>pick(i)}>[{String.fromCharCode(65+i)}] {c}</button>)}
-              </div>
-              {selected!==null && <div className={`feedback ${selected===q.answer?"ok":"bad"}`}>
-                <div><strong>{selected===q.answer?"✓ CORRECT":"✗ INCORRECT"}</strong> — {q.explain}</div>
-                {selected!==q.answer && <div style={{marginTop:8,fontSize:11,color:"#ffaa0088"}}>💡 Use the 🔢 MAGIC NUMBER CALC tab to work through this step by step.</div>}
-                <div style={{marginTop:12}}><button className="btn" onClick={next}>{idx+1>=subnetQuestions.length?"VIEW RESULTS":"NEXT >>>"}</button></div>
-              </div>}
-            </div>
-        )}
-        <div style={{marginTop:16}}><button className="btn btn-danger" style={{fontSize:11}} onClick={onBack}>← BACK</button></div>
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.subnetting} onHome={onHome} learnTab={()=>setTab("learn")} />}
       </div>
     </div>
   );
 }
 
-// ── TOPOLOGY MODULE ───────────────────────────────────────────────────────────
-
-const DEVICE_TYPES = [{type:"router",icon:"🔀",label:"Router"},{type:"switch",icon:"🔁",label:"Switch"},{type:"pc",icon:"💻",label:"PC"},{type:"server",icon:"🖥️",label:"Server"},{type:"firewall",icon:"🛡️",label:"Firewall"},{type:"ap",icon:"📡",label:"AP"}];
-const CHALLENGES = [
-  {text:"Basic LAN: 1 Router → 1 Switch → 3 PCs. Connect to form a star topology.",check:(d,c)=>d.filter(x=>x.type==="router").length>=1&&d.filter(x=>x.type==="switch").length>=1&&d.filter(x=>x.type==="pc").length>=3&&c.length>=4,hint:"Place 1 Router, 1 Switch, 3 PCs. Click a device then click another to connect them.",concept:"Classic Access Layer star. Switch creates separate collision domains. Router separates broadcast domains."},
-  {text:"DMZ: Firewall between Router and Server. PCs connect through the switch.",check:(d,c)=>d.some(x=>x.type==="firewall")&&d.some(x=>x.type==="server")&&c.length>=3,hint:"Router→Firewall→Server (DMZ segment). Firewall→Switch→PCs (LAN segment).",concept:"DMZ (Demilitarized Zone) isolates public-facing servers from the internal LAN, limiting breach impact."},
-  {text:"Redundant uplinks: 2 Switches cross-connected AND both connected to the same Router.",check:(d,c)=>d.filter(x=>x.type==="switch").length>=2&&d.filter(x=>x.type==="router").length>=1&&c.length>=3,hint:"Two switches need an uplink to each other (trunk) and individual uplinks to the router.",concept:"Redundant paths prevent single points of failure. STP will block one link to prevent broadcast storms."},
-];
-
-function TopologyModule({ onBack }) {
+function RoutingModule({ onHome }) {
   const [tab, setTab] = useState("learn");
-  const [devices, setDevices] = useState([]);
-  const [connections, setConnections] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [challengeIdx, setChallengeIdx] = useState(0);
-  const [verified, setVerified] = useState(null);
-  const [dragging, setDragging] = useState(null);
-  const [dragOffset, setDragOffset] = useState({x:0,y:0});
-  const canvasRef = useRef(null);
-  const idRef = useRef(0);
-  const challenge = CHALLENGES[challengeIdx];
-  const addDevice = (type) => { const dt=DEVICE_TYPES.find(d=>d.type===type); setDevices(prev=>[...prev,{id:++idRef.current,type,icon:dt.icon,label:dt.label,x:60+Math.random()*270,y:60+Math.random()*250}]); };
-  const getCenter = (id) => { const d=devices.find(x=>x.id===id); return d?{x:d.x+33,y:d.y+26}:{x:0,y:0}; };
-  const clearCanvas = () => { setDevices([]);setConnections([]);setSelected(null);setVerified(null); };
-
   return (
     <div>
-      <ModuleTabs tabs={[{id:"learn",label:"📖 LEARN — Topology & Design"},{id:"build",label:"🌐 TOPO BUILDER"}]} active={tab} onSelect={setTab} />
-      <div className="mod-content">
-        {tab==="learn" && <TopoLearn />}
-        {tab==="build" && <div>
-          <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap"}}>
-            <div style={{flex:1,minWidth:200,border:"1px solid #00ff4122",padding:10,background:"rgba(0,255,65,0.02)",fontSize:11}}>
-              <div style={{color:"#00ff41",marginBottom:4,fontSize:10,letterSpacing:2}}>CHALLENGE {challengeIdx+1}/{CHALLENGES.length}</div>
-              <div style={{color:"#00ff41aa",marginBottom:6}}>{challenge.text}</div>
-              <div style={{color:"#00ff4155",fontSize:10}}>HINT: {challenge.hint}</div>
-            </div>
-            <div style={{flex:1,minWidth:180,border:"1px solid #00ccff33",padding:10,background:"rgba(0,204,255,0.03)",fontSize:11}}>
-              <div style={{color:"#00ccff",marginBottom:4,fontSize:10,letterSpacing:2}}>WHY THIS MATTERS</div>
-              <div style={{color:"#00ccffaa",lineHeight:1.7}}>{challenge.concept}</div>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:12}}>
-            <div style={{display:"flex",flexDirection:"column",minWidth:130}}>
-              <div style={{fontSize:10,color:"#00ff4155",marginBottom:6,letterSpacing:2}}>ADD DEVICE</div>
-              {DEVICE_TYPES.map(dt => <button key={dt.type} className="topo-device-pick" onClick={()=>addDevice(dt.type)}><span>{dt.icon}</span>{dt.label}</button>)}
-              <div style={{marginTop:8,fontSize:10,color:"#00ff4533",borderTop:"1px solid #00ff4122",paddingTop:8,lineHeight:1.7}}>Click 2 devices<br/>to connect.<br/>Drag to move.</div>
-            </div>
-            <div style={{flex:1}}>
-              <div className="topo-canvas" ref={canvasRef}
-                onMouseMove={e => { if(!dragging)return; const r=canvasRef.current.getBoundingClientRect(); const x=Math.max(0,Math.min(r.width-70,e.clientX-r.left-dragOffset.x)); const y=Math.max(0,Math.min(r.height-70,e.clientY-r.top-dragOffset.y)); setDevices(prev=>prev.map(d=>d.id===dragging?{...d,x,y}:d)); }}
-                onMouseUp={()=>setDragging(null)} onMouseLeave={()=>setDragging(null)}>
-                <svg className="connection-svg">
-                  {connections.map((c,i)=>{const a=getCenter(c.a),b=getCenter(c.b);return <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#00ff41" strokeWidth="1.5" opacity="0.5" strokeDasharray="4 3"/>;})}
-                </svg>
-                {devices.map(dev => (
-                  <div key={dev.id} className={`device-node ${selected===dev.id?"selected":""}`} style={{left:dev.x,top:dev.y}}
-                    onMouseDown={e=>{e.stopPropagation();const r=canvasRef.current.getBoundingClientRect();setDragging(dev.id);setDragOffset({x:e.clientX-r.left-dev.x,y:e.clientY-r.top-dev.y});}}
-                    onClick={e=>{e.stopPropagation();if(dragging)return;if(selected===null){setSelected(dev.id);}else if(selected===dev.id){setSelected(null);}else{const exists=connections.some(c=>(c.a===selected&&c.b===dev.id)||(c.a===dev.id&&c.b===selected));if(!exists)setConnections(prev=>[...prev,{a:selected,b:dev.id}]);setSelected(null);}}}>
-                    <div className="device-icon">{dev.icon}</div>
-                    <div className="device-label">{dev.label}-{dev.id}</div>
-                  </div>
-                ))}
-                {devices.length===0&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",color:"#00ff4133",fontSize:12,letterSpacing:2}}>[ ADD DEVICES FROM SIDEBAR ]</div>}
-              </div>
-              <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
-                <button className="btn" onClick={()=>setVerified(challenge.check(devices,connections))}>VERIFY</button>
-                <button className="btn btn-warn" onClick={clearCanvas}>CLEAR</button>
-                {challengeIdx+1<CHALLENGES.length&&<button className="btn" onClick={()=>{setChallengeIdx(i=>i+1);clearCanvas();}}>NEXT CHALLENGE</button>}
-              </div>
-              {verified!==null&&<div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:10}}>{verified?"✓ TOPOLOGY VALIDATED — Correct architecture detected.":"✗ NOT QUITE — Check the challenge requirements and try again."}</div>}
-            </div>
-          </div>
-        </div>}
-        <div style={{marginTop:16}}><button className="btn btn-danger" style={{fontSize:11}} onClick={onBack}>← BACK</button></div>
-      </div>
-    </div>
-  );
-}
-
-// ── ROUTING MODULE ────────────────────────────────────────────────────────────
-
-function RoutingModule({ onBack }) {
-  const [tab, setTab] = useState("learn");
-  const [idx, setIdx] = useState(0);
-  const [selected, setSelected] = useState(null);
-  const [score, setScore] = useState(0);
-  const [done, setDone] = useState(false);
-  const q = routingQuestions[idx];
-  const pick = (i) => { if(selected!==null)return; setSelected(i); if(i===q.answer)setScore(s=>s+1); };
-  const next = () => { if(idx+1>=routingQuestions.length)setDone(true); else{setIdx(i=>i+1);setSelected(null);} };
-  const reset = () => { setIdx(0);setScore(0);setSelected(null);setDone(false); };
-
-  return (
-    <div>
-      <ModuleTabs tabs={[{id:"learn",label:"📖 LEARN — Routing Protocols"},{id:"drill",label:"🗺️ ROUTE SELECT"}]} active={tab} onSelect={setTab} />
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
       <div className="mod-content">
         {tab==="learn" && <RoutingLearn />}
-        {tab==="drill" && (done
-          ? <ResultScreen score={score} total={routingQuestions.length} onRetry={reset} onLearn={()=>setTab("learn")} />
-          : <div>
-              <StatRow stats={[{val:idx+1,label:"SCENARIO"},{val:routingQuestions.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
-              <div className="progress-bar"><div className="progress-fill" style={{width:`${(idx/routingQuestions.length)*100}%`}}/></div>
-              <div style={{margin:"12px 0",padding:12,border:"1px solid #00ff4122",background:"rgba(0,255,65,0.02)"}}>
-                <div style={{fontSize:10,color:"#00ff4155",marginBottom:5,letterSpacing:2}}>SCENARIO</div>
-                <div style={{fontSize:12,color:"#00ff41aa"}}>{q.scenario}</div>
-              </div>
-              <div style={{fontSize:10,color:"#00ff4155",marginBottom:6,letterSpacing:1}}>ROUTING TABLE — Click the route the router will use:</div>
-              <table className="routing-table">
-                <thead><tr><th>#</th><th>Destination</th><th>Next-Hop</th><th>Protocol</th><th>AD</th></tr></thead>
-                <tbody>
-                  {q.routes.map((r,i)=>(
-                    <tr key={i} className={selected!==null&&i===q.answer?"highlighted-row":""} style={{cursor:"pointer"}} onClick={()=>pick(i)}>
-                      <td style={{color:selected===i?(i===q.answer?"#00ff41":"#ff4444"):"#00ff4155"}}>{selected===i?(i===q.answer?"✓":"✗"):`[${i+1}]`}</td>
-                      <td>{r.dest}</td><td>{r.next}</td><td>{r.proto}</td>
-                      <td style={{color:r.ad<=1?"#00ff41":r.ad<=90?"#00ccff":r.ad>=120?"#ffaa00":"#00ff41aa",fontFamily:"'Orbitron',sans-serif",fontSize:16}}>{r.ad}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {selected!==null&&<div className={`feedback ${selected===q.answer?"ok":"bad"}`}>
-                <div><strong>{selected===q.answer?"✓ CORRECT":"✗ INCORRECT"}</strong> — {q.explain}</div>
-                {selected!==q.answer&&<div style={{marginTop:8,fontSize:11,color:"#ffaa0088"}}>💡 Review the AD table and prefix matching rules in the LEARN tab.</div>}
-                <div style={{marginTop:12}}><button className="btn" onClick={next}>{idx+1>=routingQuestions.length?"VIEW RESULTS":"NEXT >>>"}</button></div>
-              </div>}
-            </div>
-        )}
-        <div style={{marginTop:16}}><button className="btn btn-danger" style={{fontSize:11}} onClick={onBack}>← BACK</button></div>
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.routing} onHome={onHome} learnTab={()=>setTab("learn")} />}
       </div>
     </div>
   );
 }
 
-// ── VLAN MODULE ───────────────────────────────────────────────────────────────
-
-function VlanModule({ onBack }) {
+function SwitchingModule({ onHome }) {
   const [tab, setTab] = useState("learn");
   const [qIdx, setQIdx] = useState(0);
   const [placed, setPlaced] = useState({});
@@ -946,112 +1236,329 @@ function VlanModule({ onBack }) {
   const [verified, setVerified] = useState(null);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
-  const q = vlanQuestions[qIdx];
-  const unplaced = q.pools.filter((_,i)=>!Object.values(placed).flat().includes(i));
+  const [progress] = useProgress();
 
+  const vlanQs = [
+    {title:"VLAN Port Assignment",desc:"Drag each port to the correct VLAN.",pools:["Fa0/1 (Finance PC)","Fa0/2 (Guest WiFi)","Fa0/3 (HR Laptop)","Gi0/1 (Trunk to SW2)"],zones:[{label:"VLAN 10 — Finance/HR",correct:[0,2]},{label:"VLAN 20 — Guest",correct:[1]},{label:"VLAN 99 — Trunk",correct:[3]}],explain:"Finance and HR share VLAN 10 (same trust level). Guest isolated on VLAN 20. Trunk port carries all VLANs tagged."},
+    {title:"STP Port States",desc:"Match each STP state to its description.",pools:["Blocking","Learning","Forwarding","Listening"],zones:[{label:"Passes frames AND learns MAC addresses",correct:[2]},{label:"Drops frames but DOES build MAC table",correct:[1]},{label:"Drops frames, NO MAC table, listens for BPDUs",correct:[3]},{label:"Drops ALL frames, discards MAC table",correct:[0]}],explain:"STP state order: Blocking → Listening → Learning → Forwarding. Only Forwarding passes user data."},
+    {title:"Layer 2 Security",desc:"Match each threat to its correct mitigation.",pools:["Port Security","DHCP Snooping","Dynamic ARP Inspection","BPDU Guard"],zones:[{label:"Prevents rogue DHCP servers",correct:[1]},{label:"Prevents ARP spoofing attacks",correct:[2]},{label:"Limits MAC addresses per port",correct:[0]},{label:"Shuts port if BPDU received on access port",correct:[3]}],explain:"Each L2 security feature targets a specific attack. DHCP Snooping enables DAI — they work together."},
+  ];
+
+  const q = vlanQs[qIdx];
+  const unplaced = q.pools.filter((_,i) => !Object.values(placed).flat().includes(i));
   const handleDrop = (zi) => {
-    if(dragItem===null)return;
-    setPlaced(prev=>{const u={...prev};Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);});u[zi]=[...(u[zi]||[]),dragItem];return u;});
+    if (dragItem===null) return;
+    setPlaced(prev => { const u={...prev}; Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);}); u[zi]=[...(u[zi]||[]),dragItem]; return u; });
     setDragItem(null); setVerified(null);
   };
-
   const verify = () => {
     let ok=true;
     q.zones.forEach((z,zi)=>{if((placed[zi]||[]).sort().join(",")!==z.correct.sort().join(","))ok=false;});
     setVerified(ok); if(ok)setScore(s=>s+1);
   };
-
-  const next = () => { if(qIdx+1>=vlanQuestions.length)setDone(true); else{setQIdx(i=>i+1);setPlaced({});setVerified(null);} };
+  const next = () => { if(qIdx+1>=vlanQs.length)setDone(true); else{setQIdx(i=>i+1);setPlaced({});setVerified(null);} };
   const reset = () => { setQIdx(0);setScore(0);setPlaced({});setVerified(null);setDone(false); };
 
+  const renderDragDrill = () => {
+    if (done) return <ResultScreen score={score} total={vlanQs.length} onRetry={reset} onLearn={()=>setTab("learn")} onHome={onHome} />;
+    return (
+      <div>
+        <StatRow stats={[{val:qIdx+1,label:"EXERCISE"},{val:vlanQs.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
+        <div style={{margin:"10px 0",padding:"10px 14px",border:"1px solid #00ff4122"}}>
+          <div style={{fontSize:10,color:"#00ff4155",marginBottom:4,letterSpacing:2}}>{q.title}</div>
+          <div style={{fontSize:13,color:"#00ff41cc"}}>{q.desc}</div>
+        </div>
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:10,color:"#00ff4155",marginBottom:5,letterSpacing:2}}>AVAILABLE ITEMS</div>
+          <div className="drag-zone" onDragOver={e=>e.preventDefault()} onDrop={()=>{if(dragItem!==null){setPlaced(prev=>{const u={...prev};Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);});return u;});setDragItem(null);}}}>
+            {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={()=>setDragItem(i)}>{q.pools[i]}</div>)}
+            {unplaced.length===0&&<span style={{fontSize:12,color:"#00ff4133"}}>[ ALL PLACED ]</span>}
+          </div>
+        </div>
+        <div style={{display:"grid",gap:8}}>
+          {q.zones.map((zone,zi)=>(
+            <div key={zi}>
+              <div style={{fontSize:10,color:"#00ff4166",marginBottom:3,letterSpacing:1}}>{zone.label}</div>
+              <div className="drag-zone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} onDragLeave={e=>e.currentTarget.classList.remove("over")} onDrop={e=>{e.currentTarget.classList.remove("over");handleDrop(zi);}}>
+                {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={()=>setDragItem(item)} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to remove">{q.pools[item]}</div>)}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:12}}>
+          <button className="btn" onClick={verify} disabled={Object.values(placed).flat().length!==q.pools.length}>VERIFY</button>
+          <button className="btn btn-warn" onClick={()=>{setPlaced({});setVerified(null);}}>RESET</button>
+        </div>
+        {verified!==null && <div className={`feedback ${verified?"ok":"bad"}`}>
+          <strong>{verified?"✓ CORRECT":"✗ TRY AGAIN"}</strong>{verified?" — "+q.explain:" — Some items are wrong. Click to remove them."}
+          {verified && <div style={{marginTop:10}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT ›"}</button></div>}
+        </div>}
+      </div>
+    );
+  };
+
+  const [tab, setTab] = useState("learn");
   return (
     <div>
-      <ModuleTabs tabs={[{id:"learn",label:"📖 LEARN — VLANs, STP & ACLs"},{id:"drill",label:"🔌 VLAN/STP DROP"}]} active={tab} onSelect={setTab} />
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"quiz",label:"🎯 Quiz"},{id:"drag",label:"🔌 Drag & Drop"}]} active={tab} onSelect={setTab} />
       <div className="mod-content">
         {tab==="learn" && <VlanLearn />}
-        {tab==="drill" && (done
-          ? <ResultScreen score={score} total={vlanQuestions.length} onRetry={reset} onLearn={()=>setTab("learn")} />
-          : <div>
-              <StatRow stats={[{val:qIdx+1,label:"EXERCISE"},{val:vlanQuestions.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
-              <div style={{margin:"12px 0",padding:10,border:"1px solid #00ff4122",background:"rgba(0,255,65,0.02)"}}>
-                <div style={{fontSize:10,color:"#00ff4155",marginBottom:4,letterSpacing:2}}>EXERCISE: {q.title}</div>
-                <div style={{fontSize:12,color:"#00ff41aa"}}>{q.desc}</div>
-              </div>
-              <div style={{marginBottom:10}}>
-                <div style={{fontSize:10,color:"#00ff4155",marginBottom:5,letterSpacing:2}}>AVAILABLE — Drag to a zone below</div>
-                <div className="drag-zone" onDragOver={e=>e.preventDefault()} onDrop={()=>{if(dragItem!==null){setPlaced(prev=>{const u={...prev};Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);});return u;});setDragItem(null);}}}>
-                  {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={()=>setDragItem(i)}>{q.pools[i]}</div>)}
-                  {unplaced.length===0&&<span style={{color:"#00ff4133",fontSize:11}}>[ ALL PLACED ]</span>}
-                </div>
-              </div>
-              <div style={{display:"grid",gap:8}}>
-                {q.zones.map((zone,zi)=>(
-                  <div key={zi}>
-                    <div style={{fontSize:10,color:"#00ff4166",marginBottom:4,letterSpacing:1}}>{zone.label}</div>
-                    <div className="drag-zone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} onDragLeave={e=>e.currentTarget.classList.remove("over")} onDrop={e=>{e.currentTarget.classList.remove("over");handleDrop(zi);}}>
-                      {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={()=>setDragItem(item)} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to remove">{q.pools[item]}</div>)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
-                <button className="btn" onClick={verify} disabled={Object.values(placed).flat().length!==q.pools.length}>VERIFY</button>
-                <button className="btn btn-warn" onClick={()=>{setPlaced({});setVerified(null);}}>RESET</button>
-              </div>
-              {verified!==null&&<div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:12}}>
-                <div><strong>{verified?"✓ CORRECT":"✗ TRY AGAIN"}</strong>{verified?" — ":""}{verified?q.explain:"Some items are in the wrong zones. Click items to remove them."}</div>
-                {!verified&&<div style={{marginTop:8,fontSize:11,color:"#ffaa0088"}}>💡 Review the LEARN tab for VLAN port types and STP state descriptions.</div>}
-                {verified&&<div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQuestions.length?"VIEW RESULTS":"NEXT EXERCISE >>>"}</button></div>}
-              </div>}
-            </div>
-        )}
-        <div style={{marginTop:16}}><button className="btn btn-danger" style={{fontSize:11}} onClick={onBack}>← BACK</button></div>
+        {tab==="quiz" && <QuizEngine questions={ALL_QUESTIONS.switching} onHome={onHome} learnTab={()=>setTab("learn")} />}
+        {tab==="drag" && renderDragDrill()}
       </div>
     </div>
   );
 }
 
-// ── HOME ──────────────────────────────────────────────────────────────────────
-
-const MODULES = [
-  {id:"subnet",icon:"🔢",title:"SUBNET DRILL",desc:"Learn CIDR, block sizes, host ranges — then drill with rapid-fire questions.",tag:"IP ADDRESSING · VLSM"},
-  {id:"topology",icon:"🌐",title:"TOPO BUILDER",desc:"Study topology types and device roles, then build and validate network diagrams.",tag:"NETWORK DESIGN · LAN/WAN"},
-  {id:"routing",icon:"🗺️",title:"ROUTE SELECT",desc:"Master AD values and prefix matching, then pick winning routes from live tables.",tag:"OSPF · EIGRP · RIP · STATIC"},
-  {id:"vlan",icon:"🔌",title:"VLAN/STP DROP",desc:"Learn VLANs, STP states, and ACL placement — then drag-and-drop to test yourself.",tag:"SWITCHING · STP · SECURITY"},
-];
-
-function Home({ onSelect }) {
+function IPServicesModule({ onHome }) {
+  const [tab, setTab] = useState("learn");
   return (
     <div>
-      <div style={{marginBottom:16}}>
-        <div className="terminal-line"><span className="prompt">root@ccna:~$</span><span>./launch_trainer.sh --mode=learn+drill</span></div>
-        <div className="terminal-line" style={{marginTop:4}}><span className="prompt">[SYS]</span><span>4 modules ready. Each has a LEARN tab + interactive DRILL. Start with LEARN.</span></div>
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
+      <div className="mod-content">
+        {tab==="learn" && <IPServicesLearn />}
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.ipServices} onHome={onHome} learnTab={()=>setTab("learn")} />}
       </div>
+    </div>
+  );
+}
+
+function IPv6Module({ onHome }) {
+  const [tab, setTab] = useState("learn");
+  return (
+    <div>
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
+      <div className="mod-content">
+        {tab==="learn" && <IPv6Learn />}
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.ipv6} onHome={onHome} learnTab={()=>setTab("learn")} />}
+      </div>
+    </div>
+  );
+}
+
+function WirelessModule({ onHome }) {
+  const [tab, setTab] = useState("learn");
+  return (
+    <div>
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
+      <div className="mod-content">
+        {tab==="learn" && <WirelessLearn />}
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.wireless} onHome={onHome} learnTab={()=>setTab("learn")} />}
+      </div>
+    </div>
+  );
+}
+
+function SecurityModule({ onHome }) {
+  const [tab, setTab] = useState("learn");
+  return (
+    <div>
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
+      <div className="mod-content">
+        {tab==="learn" && <SecurityLearn />}
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.security} onHome={onHome} learnTab={()=>setTab("learn")} />}
+      </div>
+    </div>
+  );
+}
+
+function AutomationModule({ onHome }) {
+  const [tab, setTab] = useState("learn");
+  return (
+    <div>
+      <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"drill",label:"🎯 Drill"}]} active={tab} onSelect={setTab} />
+      <div className="mod-content">
+        {tab==="learn" && <AutomationLearn />}
+        {tab==="drill" && <QuizEngine questions={ALL_QUESTIONS.automation} onHome={onHome} learnTab={()=>setTab("learn")} />}
+      </div>
+    </div>
+  );
+}
+
+// ─── SUBNET LEARN (kept from v2) ──────────────────────────────────────────────
+function SubnetLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// SUBNETTING & IP ADDRESSING</div>
+      <div className="teach-p">Subnetting divides a network into smaller segments. The key skill: given an IP and prefix, calculate network address, broadcast, host range, and block size using the Magic Number method.</div>
+      <div className="teach-info">An IP address is 32 bits in 4 octets. The subnet mask separates network bits from host bits.</div>
+      <div className="teach-h2">CIDR QUICK REFERENCE</div>
+      <div className="cheatsheet-grid">
+        {[["/30","255.255.255.252","2 hosts"],["/29","255.255.255.248","6 hosts"],["/28","255.255.255.240","14 hosts"],["/27","255.255.255.224","30 hosts"],["/26","255.255.255.192","62 hosts"],["/25","255.255.255.128","126 hosts"],["/24","255.255.255.0","254 hosts"],["/23","255.255.254.0","510 hosts"],["/22","255.255.252.0","1022 hosts"],["/21","255.255.248.0","2046 hosts"],["/20","255.255.240.0","4094 hosts"],["/16","255.255.0.0","65534 hosts"]].map(([c,m,h])=>(
+          <div className="cheatsheet-item" key={c}><div className="cheatsheet-key">{c}</div><div className="cheatsheet-val">{m}</div><div className="cheatsheet-val" style={{color:"#00ff41"}}>{h}</div></div>
+        ))}
+      </div>
+      <div className="teach-h2">THE MAGIC NUMBER METHOD</div>
+      <div className="teach-code">{`GIVEN: 172.16.5.130/26
+1. Mask = 255.255.255.192
+2. Magic Number = 256 - 192 = 64  (block size)
+3. Count: 0, 64, 128, 192... → 130 is in 128 block
+4. Network  = 172.16.5.128
+   Broadcast = 172.16.5.191  (128 + 64 - 1)
+   Hosts     = .129 to .190  (62 usable)`}</div>
+      <div className="teach-tip">Magic Number = 256 minus the "interesting" octet value. This gives you the block size. Count up in blocks until you pass your IP — previous block start = network address.</div>
+      <div className="teach-h2">IP ADDRESS CLASSES</div>
+      <table className="teach-table">
+        <thead><tr><th>Class</th><th>First Octet</th><th>Default Mask</th><th>Private Range</th></tr></thead>
+        <tbody>
+          {[["A","1–126","/8","10.0.0.0/8"],["B","128–191","/16","172.16.0.0/12"],["C","192–223","/24","192.168.0.0/16"]].map(r=><tr key={r[0]}><td style={{color:"#00ff41"}}>{r[0]}</td><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-h2">FORMULAS</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">SUBNETS CREATED</div><div className="teach-card-body">2^n where n = bits borrowed</div></div>
+        <div className="teach-card"><div className="teach-card-title">HOSTS PER SUBNET</div><div className="teach-card-body">2^h − 2 where h = host bits remaining</div></div>
+      </div>
+      <div className="teach-tip">Powers of 2: 1,2,4,8,16,32,64,128,256,512,1024,2048,4096. Memorize these — you'll need them constantly.</div>
+    </div>
+  );
+}
+
+function RoutingLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// ROUTING PROTOCOLS & PATH SELECTION</div>
+      <div className="teach-h2">ROUTE SELECTION PRIORITY</div>
+      <div className="teach-code">{`1. LONGEST PREFIX MATCH — most specific always wins
+   /29 > /24 > /16 > /8 > /0
+   
+2. ADMINISTRATIVE DISTANCE — if same prefix length
+   Lower = more trusted
+
+3. METRIC — if same protocol
+   Lower = better path`}</div>
+      <div className="teach-info">Longest prefix match ALWAYS wins first. A specific /29 via RIP beats a /0 via static — every time.</div>
+      <div className="teach-h2">ADMINISTRATIVE DISTANCE</div>
+      <table className="teach-table">
+        <thead><tr><th>Source</th><th>AD</th></tr></thead>
+        <tbody>
+          {[["Connected",0],["Static",1],["EIGRP Summary",5],["eBGP",20],["EIGRP Internal",90],["OSPF",110],["IS-IS",115],["RIP",120],["EIGRP External",170],["iBGP",200],["Unknown",255]].map(([s,a])=><tr key={s}><td>{s}</td><td style={{color:a<=1?"#00ff41":a<=90?"#00ccff":a>=120?"#ffaa00":"#00ff41aa",fontFamily:"'Orbitron',sans-serif",fontSize:15}}>{a}</td></tr>)}
+        </tbody>
+      </table>
+      <div className="teach-tip">Must memorize: Connected=0, Static=1, EIGRP=90, OSPF=110, RIP=120.</div>
+      <div className="teach-h2">OSPF KEY FACTS</div>
+      <div className="teach-code">{`Type: Link-State | Metric: Cost (ref BW / interface BW)
+AD: 110 | Algorithm: Dijkstra SPF
+Areas: area 0 = backbone (all areas connect to it)
+DR/BDR election on broadcast networks (Ethernet)
+Packets: Hello, DBD, LSR, LSU, LSAck
+
+router ospf 1
+ network 10.0.0.0 0.255.255.255 area 0
+ router-id 1.1.1.1`}</div>
+      <div className="teach-h2">STATIC ROUTES</div>
+      <div className="teach-code">{`ip route 192.168.2.0 255.255.255.0 10.0.0.2   ! next-hop
+ip route 0.0.0.0 0.0.0.0 10.0.0.1             ! default
+ip route 192.168.2.0 255.255.255.0 10.0.0.3 150 ! floating (backup)`}</div>
+    </div>
+  );
+}
+
+function VlanLearn() {
+  return (
+    <div className="scroll-area">
+      <div className="teach-h1">// SWITCHING, VLANs & STP</div>
+      <div className="teach-h2">VLAN CONFIGURATION</div>
+      <div className="teach-code">{`vlan 10
+ name Finance
+interface fa0/1
+ switchport mode access
+ switchport access vlan 10
+interface gi0/1
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,99
+ switchport trunk native vlan 99`}</div>
+      <div className="teach-tip">Never use VLAN 1 for user traffic. Change native VLAN from 1. Put unused ports in a dead VLAN (e.g. 999).</div>
+      <div className="teach-h2">STP ELECTION & PORT STATES</div>
+      <div className="teach-code">{`Election: Lowest Bridge ID (Priority + MAC) = Root Bridge
+Default priority = 32768. Lower wins.
+Port costs: 10M=100, 100M=19, 1G=4, 10G=2
+
+States: Blocking → Listening(15s) → Learning(15s) → Forwarding
+Only FORWARDING passes user traffic.
+LEARNING builds MAC table but drops user frames.
+
+Rapid PVST+ converges in ~1-2 sec (use this!)
+PortFast + BPDU Guard on all access ports`}</div>
+      <div className="teach-h2">INTER-VLAN ROUTING</div>
+      <div className="teach-cols">
+        <div className="teach-card"><div className="teach-card-title">Router-on-a-Stick</div><div className="teach-card-body">Sub-interfaces with dot1q encapsulation. One physical port, multiple logical interfaces.</div></div>
+        <div className="teach-card"><div className="teach-card-title">L3 Switch SVIs</div><div className="teach-card-body">interface vlan X + ip routing. Faster, preferred in modern networks. No external router needed.</div></div>
+      </div>
+      <div className="teach-h2">L2 SECURITY</div>
+      <table className="teach-table">
+        <thead><tr><th>Attack</th><th>Defense</th></tr></thead>
+        <tbody>
+          {[["MAC Flooding","Port Security"],["VLAN Hopping","Disable DTP, change native VLAN"],["ARP Spoofing","Dynamic ARP Inspection (DAI)"],["Rogue DHCP","DHCP Snooping"],["STP Manipulation","BPDU Guard + Root Guard"]].map(r=><tr key={r[0]}><td style={{color:"#ff4444"}}>{r[0]}</td><td style={{color:"#00ff41"}}>{r[1]}</td></tr>)}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── HOME ─────────────────────────────────────────────────────────────────────
+
+const MODULES = [
+  {id:"subnet",icon:"🔢",title:"SUBNET DRILL",desc:"Magic Number calc, CIDR cheat sheet, and rapid-fire subnetting drills.",tag:"IP ADDRESSING · VLSM"},
+  {id:"routing",icon:"🗺️",title:"ROUTING",desc:"AD values, prefix matching, OSPF, EIGRP, RIP — learn then drill.",tag:"OSPF · EIGRP · STATIC"},
+  {id:"switching",icon:"🔁",title:"SWITCHING",desc:"VLANs, STP, L2 security — quiz + drag-and-drop exercises.",tag:"VLANS · STP · SECURITY"},
+  {id:"ipservices",icon:"⚙️",title:"IP SERVICES",desc:"NAT, DHCP, DNS, NTP, SNMP with full port number reference.",tag:"NAT · DHCP · SNMP",isNew:true},
+  {id:"ipv6",icon:"6️⃣",title:"IPv6",desc:"128-bit addressing, NDP, SLAAC, DHCPv6, OSPFv3.",tag:"NDP · SLAAC · ROUTING",isNew:true},
+  {id:"wireless",icon:"📡",title:"WIRELESS",desc:"802.11 standards, WLC architecture, CAPWAP, WPA3.",tag:"802.11 · WLC · WPA3",isNew:true},
+  {id:"security",icon:"🛡️",title:"SECURITY",desc:"ACLs, AAA, RADIUS vs TACACS+, VPNs, L2 attack mitigations.",tag:"ACL · AAA · VPN",isNew:true},
+  {id:"automation",icon:"⚡",title:"AUTOMATION",desc:"SDN, REST APIs, JSON/YAML, Ansible, DNA Center.",tag:"SDN · REST · ANSIBLE",isNew:true},
+];
+
+function Home({ onSelect, onExam, onProgress }) {
+  return (
+    <div>
+      <div style={{marginBottom:14}}>
+        <div className="terminal-line"><span className="prompt">root@ccna:~$</span><span>./ccna_trainer --version=3 --domains=all</span></div>
+        <div className="terminal-line" style={{marginTop:3}}><span className="prompt">[SYS]</span><span>8 modules · 80+ questions · exam simulator · progress tracking</span></div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        <button className="btn btn-warn" onClick={onExam} style={{fontSize:12}}>⏱ EXAM SIMULATOR</button>
+        <button className="btn btn-info" onClick={onProgress} style={{fontSize:12}}>📊 PROGRESS TRACKER</button>
+      </div>
+
       <div className="home-grid">
         {MODULES.map(m => (
-          <div key={m.id} className="module-card" onClick={()=>onSelect(m.id)}>
+          <div key={m.id} className={`module-card ${m.isNew?"new-card":""}`} onClick={()=>onSelect(m.id)}>
             <div className="module-icon">{m.icon}</div>
-            <div className="module-title">{m.title}</div>
+            <div className="module-title">{m.title}{m.isNew&&<span className="new-badge">NEW</span>}</div>
             <div className="module-desc">{m.desc}</div>
-            <div className="module-tag">{m.tag}</div>
+            <div className="module-tag" style={m.isNew?{color:"#00ccff88",borderColor:"#00ccff33"}:{}}>{m.tag}</div>
           </div>
         ))}
       </div>
-      <div style={{marginTop:16,padding:12,border:"1px solid #00ff4122",background:"rgba(0,255,65,0.01)"}}>
-        <div style={{fontSize:10,color:"#00ff4155",letterSpacing:2,marginBottom:8}}>RECOMMENDED WORKFLOW</div>
-        <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-          {["① Open a module","② Read the 📖 LEARN tab","③ Switch to the drill","④ Return to LEARN if stuck"].map(t=><div key={t} style={{fontSize:11,color:"#00ff4188"}}>▸ {t}</div>)}
-        </div>
+
+      <div style={{marginTop:14,padding:12,border:"1px solid #00ff4122",fontSize:12,color:"#00ff4166",lineHeight:1.8}}>
+        <span style={{color:"#00ff41aa",letterSpacing:2,fontSize:10}}>CCNA 200-301 COVERAGE: </span>
+        {["Network Fundamentals","IP Connectivity","IP Services","Security Fundamentals","Automation","Network Access","IPv6","Wireless"].map(t=>`▸ ${t}`).join("  ")}
       </div>
     </div>
   );
 }
 
-// ── APP ───────────────────────────────────────────────────────────────────────
+// ─── APP ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [view, setView] = useState("home");
-  const navItems = [{id:"home",label:"HOME"},{id:"subnet",label:"SUBNET DRILL"},{id:"topology",label:"TOPO BUILDER"},{id:"routing",label:"ROUTE SELECT"},{id:"vlan",label:"VLAN/STP DROP"}];
+
+  const navItems = [
+    {id:"home",label:"HOME"},
+    {id:"subnet",label:"SUBNET"},
+    {id:"routing",label:"ROUTING"},
+    {id:"switching",label:"SWITCHING"},
+    {id:"ipservices",label:"IP SERVICES"},
+    {id:"ipv6",label:"IPv6"},
+    {id:"wireless",label:"WIRELESS"},
+    {id:"security",label:"SECURITY"},
+    {id:"automation",label:"AUTOMATION"},
+    {id:"exam",label:"⏱ EXAM",cls:"exam-btn"},
+    {id:"progress",label:"📊 PROGRESS",cls:"progress-btn"},
+  ];
 
   return (
     <>
@@ -1060,19 +1567,29 @@ export default function App() {
         <div className="scanlines"/><div className="crt-glow"/>
         <div className="header">
           <div className="logo">CCNA::TERMINAL</div>
-          <div className="header-tag">v2.0</div>
-          <div className="header-tag">EXAM 200-301</div>
-          <div style={{fontSize:11,color:"#00ff4144",marginLeft:"auto"}}>{new Date().toISOString().split("T")[0]}</div>
+          <div className="header-tag">v3.0</div>
+          <div className="header-tag">200-301</div>
+          <div style={{fontSize:11,color:"#00ff4133",marginLeft:"auto"}}>{new Date().toISOString().split("T")[0]}</div>
         </div>
         <div className="nav">
-          {navItems.map(n=><button key={n.id} className={`nav-btn ${view===n.id?"active":""}`} onClick={()=>setView(n.id)}>{n.label}</button>)}
+          {navItems.map(n=>(
+            <button key={n.id} className={`nav-btn ${n.cls||""} ${view===n.id?"active":""}`} onClick={()=>setView(n.id)}>
+              {n.label}
+            </button>
+          ))}
         </div>
         <div className="main">
-          {view==="home"&&<Home onSelect={setView}/>}
-          {view==="subnet"&&<SubnetModule onBack={()=>setView("home")}/>}
-          {view==="topology"&&<TopologyModule onBack={()=>setView("home")}/>}
-          {view==="routing"&&<RoutingModule onBack={()=>setView("home")}/>}
-          {view==="vlan"&&<VlanModule onBack={()=>setView("home")}/>}
+          {view==="home"       && <Home onSelect={setView} onExam={()=>setView("exam")} onProgress={()=>setView("progress")}/>}
+          {view==="subnet"     && <SubnetModule onHome={()=>setView("home")}/>}
+          {view==="routing"    && <RoutingModule onHome={()=>setView("home")}/>}
+          {view==="switching"  && <SwitchingModule onHome={()=>setView("home")}/>}
+          {view==="ipservices" && <IPServicesModule onHome={()=>setView("home")}/>}
+          {view==="ipv6"       && <IPv6Module onHome={()=>setView("home")}/>}
+          {view==="wireless"   && <WirelessModule onHome={()=>setView("home")}/>}
+          {view==="security"   && <SecurityModule onHome={()=>setView("home")}/>}
+          {view==="automation" && <AutomationModule onHome={()=>setView("home")}/>}
+          {view==="exam"       && <ExamSimulator onHome={()=>setView("home")}/>}
+          {view==="progress"   && <ProgressTracker onHome={()=>setView("home")}/>}
         </div>
       </div>
     </>
