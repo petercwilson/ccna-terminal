@@ -17,8 +17,8 @@ const styles = `
   
   /* HEADER & NAV */
   .header { border-bottom: 1px solid rgba(0,229,255,0.2); padding: 12px 20px; display: flex; align-items: center; gap: 14px; background: rgba(0,229,255,0.03); flex-wrap: wrap; }
-  .logo { font-family: 'Hack', monospace; font-size: 22px; color: #00e5ff; font-weight: bold; letter-spacing: 1px; }
-  .header-tag { font-family: 'Hack', monospace; font-size: 13px; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; }
+  .logo { font-family: 'Hack', monospace; font-size: 30px; color: #00e5ff; font-weight: bold; letter-spacing: 1px; }
+  .header-tag { font-family: 'Hack', monospace; font-size: 14px; color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.3); padding: 2px 8px; }
   
   .nav { display: flex; gap: 3px; padding: 8px 20px; border-bottom: 1px solid rgba(0,229,255,0.15); flex-wrap: wrap; }
   .nav-btn { background: transparent; border: 1px solid rgba(0,229,255,0.3); color: rgba(255,255,255,0.8); font-family: 'Cantarell', sans-serif; font-size: 14px; padding: 6px 14px; cursor: pointer; transition: all 0.15s; }
@@ -58,7 +58,7 @@ const styles = `
   .module-card.new-card::after { background: #1de9b6; }
   .module-card.new-card:hover { border-color: #1de9b6; box-shadow: 0 6px 15px rgba(29,233,182,0.05); }
   .module-icon { font-size: 28px; margin-bottom: 10px; color: rgba(255,255,255,0.9); }
-  .module-title { font-family: 'Cantarell', sans-serif; font-size: 16px; font-weight: bold; color: #00e5ff; margin-bottom: 8px; }
+  .module-title { font-family: 'Cantarell', sans-serif; font-size: 20px; font-weight: bold; color: #00e5ff; margin-bottom: 8px; }
   .module-card.new-card .module-title { color: #1de9b6; }
   .module-desc { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.6; }
   .module-tag { margin-top: 12px; font-size: 12px; font-family: 'Hack', monospace; color: rgba(0,229,255,0.7); border: 1px solid rgba(0,229,255,0.3); background: rgba(0,229,255,0.05); display: inline-block; padding: 3px 8px; border-radius: 2px; }
