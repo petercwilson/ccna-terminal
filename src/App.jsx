@@ -1206,34 +1206,45 @@ function SwitchingModule({ onHome }) {
     return (
       <div>
         <StatRow stats={[{val:qIdx+1,label:"EXERCISE"},{val:vlanQs.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
-        <div style={{margin:"10px 0",padding:"10px 14px",border:"1px solid #00ff4122"}}>
-          <div style={{fontSize:10,color:"#00ff4155",marginBottom:4,letterSpacing:2}}>{q.title}</div>
-          <div style={{fontSize:13,color:"#00ff41cc"}}>{q.desc}</div>
+        <div style={{margin:"10px 0",padding:"10px 14px",border:"1px solid rgba(0,229,255,0.2)",background:"rgba(0,229,255,0.02)",borderRadius:4}}>
+          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:4,letterSpacing:2,fontWeight:"bold"}}>{q.title}</div>
+          <div style={{fontSize:14,color:"#ffffff"}}>{q.desc}</div>
         </div>
-        <div style={{marginBottom:10}}>
-          <div style={{fontSize:10,color:"#00ff4155",marginBottom:5,letterSpacing:2}}>AVAILABLE ITEMS</div>
-          <div className="drag-zone" onDragOver={e=>e.preventDefault()} onDrop={()=>{if(dragItem!==null){setPlaced(prev=>{const u={...prev};Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);});return u;});setDragItem(null);}}}>
-            {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={()=>setDragItem(i)}>{q.pools[i]}</div>)}
-            {unplaced.length===0&&<span style={{fontSize:12,color:"#00ff4133"}}>[ ALL PLACED ]</span>}
+        <div style={{marginBottom:16}}>
+          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:1,fontWeight:"bold"}}>AVAILABLE ITEMS</div>
+          <div className="drag-zone" 
+               onDragOver={e=>e.preventDefault()} 
+               onDrop={(e)=>{
+                 e.preventDefault();
+                 if(dragItem!==null){
+                   setPlaced(prev=>{const u={...prev};Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);});return u;});
+                   setDragItem(null);
+                 }
+               }}>
+            {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(i); e.dataTransfer.setData('text/plain', i);}}>{q.pools[i]}</div>)}
+            {unplaced.length===0&&<span style={{fontSize:13,color:"rgba(255,255,255,0.3)",padding:"6px 0"}}>[ ALL PLACED ]</span>}
           </div>
         </div>
-        <div style={{display:"grid",gap:8}}>
+        <div style={{display:"grid",gap:12}}>
           {q.zones.map((zone,zi)=>(
             <div key={zi}>
-              <div style={{fontSize:10,color:"#00ff4166",marginBottom:3,letterSpacing:1}}>{zone.label}</div>
-              <div className="drag-zone" onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} onDragLeave={e=>e.currentTarget.classList.remove("over")} onDrop={e=>{e.currentTarget.classList.remove("over");handleDrop(zi);}}>
-                {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={()=>setDragItem(item)} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to remove">{q.pools[item]}</div>)}
+              <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:4,letterSpacing:1,fontWeight:"bold"}}>{zone.label}</div>
+              <div className="drag-zone" 
+                   onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} 
+                   onDragLeave={e=>e.currentTarget.classList.remove("over")} 
+                   onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove("over");handleDrop(zi);}}>
+                {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(item); e.dataTransfer.setData('text/plain', item);}} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to remove">{q.pools[item]}</div>)}
               </div>
             </div>
           ))}
         </div>
-        <div style={{display:"flex",gap:8,marginTop:12}}>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
           <button className="btn" onClick={verify} disabled={Object.values(placed).flat().length!==q.pools.length}>VERIFY</button>
           <button className="btn btn-warn" onClick={()=>{setPlaced({});setVerified(null);}}>RESET</button>
         </div>
-        {verified!==null && <div className={`feedback ${verified?"ok":"bad"}`}>
+        {verified!==null && <div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:16}}>
           <strong>{verified?"✓ CORRECT":"✗ TRY AGAIN"}</strong>{verified?" — "+q.explain:" — Some items are wrong. Click to remove them."}
-          {verified && <div style={{marginTop:10}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT ›"}</button></div>}
+          {verified && <div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT ›"}</button></div>}
         </div>}
       </div>
     );
