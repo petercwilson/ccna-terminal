@@ -1254,7 +1254,6 @@ function SwitchingModule({ onHome }) {
         <div style={{marginBottom:20}}>
           <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:8,letterSpacing:1,fontWeight:"bold"}}>AVAILABLE TAGS</div>
           <div className="drag-zone" style={{minHeight:"auto"}}>
-            {/* The Pool: Items here are always available to copy */}
             {q.pools.map((poolItem, i) => (
               <div key={i} className="drag-chip" draggable onDragStart={(e) => {
                   setDragItem(i); 
@@ -1265,39 +1264,56 @@ function SwitchingModule({ onHome }) {
         </div>
 
         <div style={{display:"grid",gap:16}}>
-          {q.zones.map((zone, zi) => (
-            <div key={zi}>
-              <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:1,fontWeight:"bold"}}>{zone.label}</div>
-              <div className="drag-zone" 
-                   onDragOver={e => {e.preventDefault(); e.currentTarget.classList.add("over");}} 
-                   onDragLeave={e => e.currentTarget.classList.remove("over")} 
-                   onDrop={e => {
-                     e.preventDefault(); 
-                     e.currentTarget.classList.remove("over");
-                     if (dragItem !== null) {
-                       // Replace whatever is currently in this zone with the new dragItem
-                       setPlaced(prev => ({ ...prev, [zi]: [dragItem] }));
-                       setDragItem(null);
-                     }
-                   }}>
-                
-                <div className="port-label">PORT {String(zi+1).padStart(2, '0')}</div>
-                
-                {(placed[zi] || []).map(item => (
-                  <div key={item} className="drag-chip" onClick={() => {
-                      setPlaced(prev => {
-                        const u = { ...prev };
-                        u[zi] = []; // Clear the zone on click
-                        return u;
-                      });
-                      setVerified(null);
-                  }} title="Click to remove">{q.pools[item]}</div>
-                ))}
-                
-                {!(placed[zi] || []).length && <span className="empty-port-text">[ UNASSIGNED ]</span>}
+          {q.zones.map((zone, zi) => {
+            // Determine if the item placed here is correct (only when verified is triggered)
+            const placedItem = (placed[zi] || [])[0];
+            const isEvaluated = verified !== null && placedItem !== undefined;
+            const isItemCorrect = isEvaluated && zone.correct.includes(placedItem);
+
+            // Dynamic border and background based on correctness
+            const chipStyle = isEvaluated 
+              ? (isItemCorrect 
+                  ? { borderColor: "#1de9b6", borderLeft: "6px solid #1de9b6", background: "rgba(29, 233, 182, 0.1)", color: "#1de9b6" } 
+                  : { borderColor: "#ff4444", borderLeft: "6px solid #ff4444", background: "rgba(255, 68, 68, 0.1)", color: "#ff8888" })
+              : {};
+
+            return (
+              <div key={zi}>
+                <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:1,fontWeight:"bold"}}>{zone.label}</div>
+                <div className="drag-zone" 
+                     onDragOver={e => {e.preventDefault(); e.currentTarget.classList.add("over");}} 
+                     onDragLeave={e => e.currentTarget.classList.remove("over")} 
+                     onDrop={e => {
+                       e.preventDefault(); 
+                       e.currentTarget.classList.remove("over");
+                       if (dragItem !== null) {
+                         setPlaced(prev => ({ ...prev, [zi]: [dragItem] }));
+                         setDragItem(null);
+                       }
+                     }}>
+                  
+                  <div className="port-label">PORT {String(zi+1).padStart(2, '0')}</div>
+                  
+                  {placedItem !== undefined && (
+                    <div className="drag-chip" style={chipStyle} onClick={() => {
+                        setPlaced(prev => {
+                          const u = { ...prev };
+                          u[zi] = []; 
+                          return u;
+                        });
+                        setVerified(null);
+                    }} title="Click to remove">
+                      {q.pools[placedItem]} 
+                      {/* Add visual indicator text if evaluated */}
+                      {isEvaluated && (isItemCorrect ? " ✓" : " ✗")}
+                    </div>
+                  )}
+                  
+                  {placedItem === undefined && <span className="empty-port-text">[ UNASSIGNED ]</span>}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div style={{display:"flex",gap:10,marginTop:20}}>
@@ -1308,7 +1324,7 @@ function SwitchingModule({ onHome }) {
         {verified !== null && (
           <div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:16}}>
             <strong>{verified?"✓ CORRECT CONFIGURATION":"✗ CONFIGURATION ERROR"}</strong>
-            {verified ? " — " + q.explain : " — Some assignments are incorrect. Try again."}
+            {verified ? " — " + q.explain : " — Some assignments are incorrect. They are marked in red. Click a module to remove it and try again."}
             {verified && <div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT EXERCISE ›"}</button></div>}
           </div>
         )}
