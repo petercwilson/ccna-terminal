@@ -137,8 +137,9 @@ const styles = `
   .drag-chip:active { cursor: grabbing; border-color: #1de9b6; color: #1de9b6; }
 
   /* DRAG & DROP DRILL */
-  .drag-zone { border: 2px solid rgba(0,229,255,0.15); min-height: 64px; padding: 12px; background: #04080c; box-shadow: inset 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-wrap: wrap; gap: 10px; border-radius: 6px; transition: all 0.2s; align-items: center; }
+  .drag-zone { position: relative; border: 2px solid rgba(0,229,255,0.15); min-height: 64px; padding: 22px 12px 12px 12px; background: #04080c; box-shadow: inset 0 4px 12px rgba(0,0,0,0.5); display: flex; flex-wrap: wrap; gap: 10px; border-radius: 6px; transition: all 0.2s; align-items: center; }
   .drag-zone.over { background: rgba(0,229,255,0.05); border-color: #00e5ff; box-shadow: inset 0 0 20px rgba(0,229,255,0.15); }
+  .port-label { position: absolute; top: 4px; left: 8px; font-family: 'Hack', monospace; font-size: 10px; color: rgba(0,229,255,0.3); font-weight: bold; letter-spacing: 1px; pointer-events: none; }
   .drag-chip { background: linear-gradient(180deg, #111d2b 0%, #0c1520 100%); border: 1px solid #00e5ff; border-left: 6px solid #1de9b6; color: #ffffff; font-family: 'Hack', monospace; font-size: 13px; padding: 8px 14px; cursor: grab; user-select: none; border-radius: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; transition: transform 0.1s; }
   .drag-chip::before { content: '⣿'; margin-right: 10px; color: #00e5ff; opacity: 0.6; font-size: 14px; }
   .drag-chip:hover { border-color: #1de9b6; }
@@ -1223,6 +1224,7 @@ function SwitchingModule({ onHome }) {
                    setDragItem(null);
                  }
                }}>
+            <div className="port-label">SOURCE TRAY</div>
             {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(i); e.dataTransfer.setData('text/plain', i);}}>{q.pools[i]}</div>)}
             {unplaced.length===0&&<span className="empty-port-text">[ ALL MODULES CONNECTED ]</span>}
           </div>
@@ -1236,6 +1238,8 @@ function SwitchingModule({ onHome }) {
                    onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} 
                    onDragLeave={e=>e.currentTarget.classList.remove("over")} 
                    onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove("over");handleDrop(zi);}}>
+                
+                <div className="port-label">PORT {String(zi+1).padStart(2, '0')}</div>
                 
                 {/* Render the dropped chips */}
                 {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(item); e.dataTransfer.setData('text/plain', item);}} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to disconnect">{q.pools[item]}</div>)}
