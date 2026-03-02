@@ -1297,7 +1297,6 @@ function SwitchingModule({ onHome }) {
     );
   };
 
-  const [tab, setTab] = useState("learn");
   return (
     <div>
       <ModuleTabs tabs={[{id:"learn",label:"📖 Learn"},{id:"quiz",label:"🎯 Quiz"},{id:"drag",label:"🔌 Drag & Drop"}]} active={tab} onSelect={setTab} />
