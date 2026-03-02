@@ -1182,9 +1182,42 @@ function SwitchingModule({ onHome }) {
   const [progress] = useProgress();
 
   const vlanQs = [
-    {title:"VLAN Port Assignment",desc:"Drag each port to the correct VLAN.",pools:["Fa0/1 (Finance PC)","Fa0/2 (Guest WiFi)","Fa0/3 (HR Laptop)","Gi0/1 (Trunk to SW2)"],zones:[{label:"VLAN 10 — Finance/HR",correct:[0,2]},{label:"VLAN 20 — Guest",correct:[1]},{label:"VLAN 99 — Trunk",correct:[3]}],explain:"Finance and HR share VLAN 10 (same trust level). Guest isolated on VLAN 20. Trunk port carries all VLANs tagged."},
-    {title:"STP Port States",desc:"Match each STP state to its description.",pools:["Blocking","Learning","Forwarding","Listening"],zones:[{label:"Passes frames AND learns MAC addresses",correct:[2]},{label:"Drops frames but DOES build MAC table",correct:[1]},{label:"Drops frames, NO MAC table, listens for BPDUs",correct:[3]},{label:"Drops ALL frames, discards MAC table",correct:[0]}],explain:"STP state order: Blocking → Listening → Learning → Forwarding. Only Forwarding passes user data."},
-    {title:"Layer 2 Security",desc:"Match each threat to its correct mitigation.",pools:["Port Security","DHCP Snooping","Dynamic ARP Inspection","BPDU Guard"],zones:[{label:"Prevents rogue DHCP servers",correct:[1]},{label:"Prevents ARP spoofing attacks",correct:[2]},{label:"Limits MAC addresses per port",correct:[0]},{label:"Shuts port if BPDU received on access port",correct:[3]}],explain:"Each L2 security feature targets a specific attack. DHCP Snooping enables DAI — they work together."},
+    {
+      title: "VLAN Port Assignment",
+      desc: "Drag the correct VLAN assignment to each switch port.",
+      pools: ["VLAN 10", "VLAN 20", "VLAN 99"], // The things you drag
+      zones: [
+        { label: "Fa0/1 (Finance PC)", correct: [0] }, // Port 1 expects VLAN 10 (index 0)
+        { label: "Fa0/2 (Guest WiFi)", correct: [1] }, // Port 2 expects VLAN 20 (index 1)
+        { label: "Fa0/3 (HR Laptop)", correct: [0] },  // Port 3 expects VLAN 10 (index 0)
+        { label: "Gi0/1 (Trunk to SW2)", correct: [2] } // Port 4 expects VLAN 99 (index 2)
+      ],
+      explain: "Finance and HR share VLAN 10. Guest is isolated on VLAN 20. The Trunk port carries all traffic and uses VLAN 99 natively."
+    },
+    {
+      title: "STP Port States",
+      desc: "Assign the correct STP state to its description.",
+      pools: ["Blocking", "Listening", "Learning", "Forwarding"],
+      zones: [
+        { label: "Drops ALL frames, discards MAC table", correct: [0] },
+        { label: "Drops frames, NO MAC table, listens for BPDUs", correct: [1] },
+        { label: "Drops frames but DOES build MAC table", correct: [2] },
+        { label: "Passes frames AND learns MAC addresses", correct: [3] }
+      ],
+      explain: "STP state order: Blocking → Listening → Learning → Forwarding. Only Forwarding passes user data."
+    },
+    {
+      title: "Layer 2 Security",
+      desc: "Assign the correct mitigation to each threat.",
+      pools: ["Port Security", "DHCP Snooping", "DAI", "BPDU Guard"],
+      zones: [
+        { label: "Limits MAC addresses per port (MAC Flooding)", correct: [0] },
+        { label: "Prevents rogue DHCP servers", correct: [1] },
+        { label: "Prevents ARP spoofing attacks", correct: [2] },
+        { label: "Shuts port if BPDU received on access port", correct: [3] }
+      ],
+      explain: "Each L2 security feature targets a specific attack. DHCP Snooping enables DAI — they work together."
+    }
   ];
 
   const q = vlanQs[qIdx];
@@ -1204,6 +1237,11 @@ function SwitchingModule({ onHome }) {
 
   const renderDragDrill = () => {
     if (done) return <ResultScreen score={score} total={vlanQs.length} onRetry={reset} onLearn={()=>setTab("learn")} onHome={onHome} />;
+    
+    // Check if every zone has exactly one item placed in it
+    const isReadyToVerify = Object.values(placed).length === q.zones.length && 
+                            Object.values(placed).every(arr => arr.length > 0);
+
     return (
       <div>
         <StatRow stats={[{val:qIdx+1,label:"EXERCISE"},{val:vlanQs.length,label:"TOTAL"},{val:score,label:"CORRECT"}]} />
@@ -1214,52 +1252,66 @@ function SwitchingModule({ onHome }) {
         </div>
 
         <div style={{marginBottom:20}}>
-          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:8,letterSpacing:1,fontWeight:"bold"}}>UNCONNECTED CABLES / MODULES</div>
-          <div className="drag-zone" 
-               onDragOver={e=>e.preventDefault()} 
-               onDrop={(e)=>{
-                 e.preventDefault();
-                 if(dragItem!==null){
-                   setPlaced(prev=>{const u={...prev};Object.keys(u).forEach(k=>{u[k]=(u[k]||[]).filter(x=>x!==dragItem);});return u;});
-                   setDragItem(null);
-                 }
-               }}>
-            <div className="port-label">SOURCE TRAY</div>
-            {unplaced.map(i=><div key={i} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(i); e.dataTransfer.setData('text/plain', i);}}>{q.pools[i]}</div>)}
-            {unplaced.length===0&&<span className="empty-port-text">[ ALL MODULES CONNECTED ]</span>}
+          <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:8,letterSpacing:1,fontWeight:"bold"}}>AVAILABLE TAGS</div>
+          <div className="drag-zone" style={{minHeight:"auto"}}>
+            {/* The Pool: Items here are always available to copy */}
+            {q.pools.map((poolItem, i) => (
+              <div key={i} className="drag-chip" draggable onDragStart={(e) => {
+                  setDragItem(i); 
+                  e.dataTransfer.setData('text/plain', i);
+              }}>{poolItem}</div>
+            ))}
           </div>
         </div>
 
         <div style={{display:"grid",gap:16}}>
-          {q.zones.map((zone,zi)=>(
+          {q.zones.map((zone, zi) => (
             <div key={zi}>
               <div style={{fontSize:12,color:"rgba(0,229,255,0.7)",marginBottom:6,letterSpacing:1,fontWeight:"bold"}}>{zone.label}</div>
               <div className="drag-zone" 
-                   onDragOver={e=>{e.preventDefault();e.currentTarget.classList.add("over");}} 
-                   onDragLeave={e=>e.currentTarget.classList.remove("over")} 
-                   onDrop={e=>{e.preventDefault();e.currentTarget.classList.remove("over");handleDrop(zi);}}>
+                   onDragOver={e => {e.preventDefault(); e.currentTarget.classList.add("over");}} 
+                   onDragLeave={e => e.currentTarget.classList.remove("over")} 
+                   onDrop={e => {
+                     e.preventDefault(); 
+                     e.currentTarget.classList.remove("over");
+                     if (dragItem !== null) {
+                       // Replace whatever is currently in this zone with the new dragItem
+                       setPlaced(prev => ({ ...prev, [zi]: [dragItem] }));
+                       setDragItem(null);
+                     }
+                   }}>
                 
                 <div className="port-label">PORT {String(zi+1).padStart(2, '0')}</div>
                 
-                {/* Render the dropped chips */}
-                {(placed[zi]||[]).map(item=><div key={item} className="drag-chip" draggable onDragStart={(e)=>{setDragItem(item); e.dataTransfer.setData('text/plain', item);}} onClick={()=>{setPlaced(prev=>{const u={...prev};u[zi]=(u[zi]||[]).filter(x=>x!==item);return u;});setVerified(null);}} title="Click to disconnect">{q.pools[item]}</div>)}
+                {(placed[zi] || []).map(item => (
+                  <div key={item} className="drag-chip" onClick={() => {
+                      setPlaced(prev => {
+                        const u = { ...prev };
+                        u[zi] = []; // Clear the zone on click
+                        return u;
+                      });
+                      setVerified(null);
+                  }} title="Click to remove">{q.pools[item]}</div>
+                ))}
                 
-                {/* Show empty port indicator if nothing is placed here */}
-                {!(placed[zi]||[]).length && <span className="empty-port-text">[ EMPTY PORT ]</span>}
+                {!(placed[zi] || []).length && <span className="empty-port-text">[ UNASSIGNED ]</span>}
               </div>
             </div>
           ))}
         </div>
 
         <div style={{display:"flex",gap:10,marginTop:20}}>
-          <button className="btn" onClick={verify} disabled={Object.values(placed).flat().length!==q.pools.length}>VERIFY CONNECTIONS</button>
-          <button className="btn btn-warn" onClick={()=>{setPlaced({});setVerified(null);}}>DISCONNECT ALL</button>
+          <button className="btn" onClick={verify} disabled={!isReadyToVerify}>VERIFY CONNECTIONS</button>
+          <button className="btn btn-warn" onClick={() => {setPlaced({}); setVerified(null);}}>CLEAR ALL</button>
         </div>
 
-        {verified!==null && <div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:16}}>
-          <strong>{verified?"✓ LINK ESTABLISHED":"✗ CONNECTION FAILED"}</strong>{verified?" — "+q.explain:" — Incorrect port assignments. Click a module to disconnect it and try again."}
-          {verified && <div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT EXERCISE ›"}</button></div>}
-        </div>}
+        {verified !== null && (
+          <div className={`feedback ${verified?"ok":"bad"}`} style={{marginTop:16}}>
+            <strong>{verified?"✓ CORRECT CONFIGURATION":"✗ CONFIGURATION ERROR"}</strong>
+            {verified ? " — " + q.explain : " — Some assignments are incorrect. Try again."}
+            {verified && <div style={{marginTop:12}}><button className="btn" onClick={next}>{qIdx+1>=vlanQs.length?"VIEW RESULTS":"NEXT EXERCISE ›"}</button></div>}
+          </div>
+        )}
       </div>
     );
   };
