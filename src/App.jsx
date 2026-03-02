@@ -130,6 +130,12 @@ const styles = `
   .step-num { font-family: 'Hack', monospace; font-size: 16px; color: rgba(0,229,255,0.5); width: 24px; flex-shrink: 0; }
   .step-highlight { color: #00e5ff; font-family: 'Hack', monospace; font-size: 14px; }
 
+  /* DRAG & DROP DRILL */
+  .drag-zone { border: 1px dashed rgba(0,229,255,0.4); min-height: 50px; padding: 10px; background: rgba(0,229,255,0.02); display: flex; flex-wrap: wrap; gap: 8px; border-radius: 4px; transition: all 0.2s; }
+  .drag-zone.over { background: rgba(0,229,255,0.08); border-color: #00e5ff; }
+  .drag-chip { background: #0c1520; border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Hack', monospace; font-size: 13px; padding: 6px 12px; cursor: grab; user-select: none; border-radius: 2px; }
+  .drag-chip:active { cursor: grabbing; border-color: #1de9b6; color: #1de9b6; }
+
   /* EXAM SIM */
   .exam-header { background: #0c1520; border: 1px solid rgba(255,255,255,0.1); padding: 18px 22px; margin-bottom: 18px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border-radius: 4px; }
   .exam-timer { font-family: 'Hack', monospace; font-size: 32px; color: #ffffff; }
