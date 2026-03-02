@@ -136,7 +136,7 @@ const styles = `
   .magic-error { border: 1px solid rgba(255,68,68,0.4); background: rgba(255,68,68,0.04); padding: 14px 18px; font-size: 15px; color: #ff8888; margin: 14px 0; }
 
   /* EXAM SIM & PROGRESS */
-  .exam-header { background: rgba(255,170,0,0.05); border: 1px solid rgba(255,170,0,0.3); padding: 18px 22px; margin-bottom: 18px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .exam- { background: rgba(255,170,0,0.05); border: 1px solid rgba(255,170,0,0.3); padding: 18px 22px; margin-bottom: 18px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
   .exam-timer { font-family: 'Orbitron', sans-serif; font-size: 32px; color: #ffaa00; }
   .exam-timer.danger { color: #ff4444; }
   .exam-question-counter { font-size: 14px; color: rgba(255,170,0,0.8); }
@@ -1522,7 +1522,7 @@ export default function App() {
         <div className="scanlines"/><div className="crt-glow"/>
         <div className="header">
           <div className="logo">CCNA::TERMINAL</div>
-          <div className="header-tag">v3.0</div>
+          <div className="header-tag">v1.3</div>
           <div className="header-tag">200-301</div>
           <div style={{fontSize:11,color:"#00ff4133",marginLeft:"auto"}}>{new Date().toISOString().split("T")[0]}</div>
         </div>
