@@ -1394,7 +1394,7 @@ export default function App() {
   return (
     <>
       <style>{styles}</style>
-      <div className="app flicker">
+      <div className="app">
         <div className="scanlines"/><div className="crt-glow"/>
         <div className="header">
           <div className="logo">CCNA::TERMINAL</div>
