@@ -1573,16 +1573,43 @@ const MODULES = [
 ];
 
 function Home({ onSelect, onExam, onProgress }) {
+  const [typedText, setTypedText] = useState("");
+  const fullCommand = "./ccna_trainer --version=3 --domains=all";
+
+  // Typing effect hook
+  useEffect(() => {
+    let i = 0;
+    const typing = setInterval(() => {
+      setTypedText(fullCommand.slice(0, i));
+      i++;
+      if (i > fullCommand.length) clearInterval(typing);
+    }, 45); // Typing speed
+    return () => clearInterval(typing);
+  }, []);
+
   return (
     <div>
-      <div style={{marginBottom:14}}>
-        <div className="terminal-line"><span className="prompt">root@ccna:~$</span><span>./ccna_trainer --version=3 --domains=all</span></div>
-        <div className="terminal-line" style={{marginTop:3}}><span className="prompt">[SYS]</span><span>8 modules · 80+ questions · exam simulator · progress tracking</span></div>
+      <div style={{marginBottom:14, padding: "16px", background: "rgba(0,229,255,0.02)", border: "1px solid rgba(0,229,255,0.1)", borderRadius: "4px"}}>
+        <div className="terminal-line">
+          <span className="prompt" style={{color:"#1de9b6", marginRight: "8px"}}>root@ccna:~$</span>
+          <span style={{color: "#ffffff"}}>{typedText}</span>
+          <span className="cursor"></span>
+        </div>
+        {typedText.length === fullCommand.length && (
+          <div className="terminal-line" style={{marginTop:8, color: "rgba(255,255,255,0.6)", fontSize: "14px"}}>
+            <span className="prompt" style={{color:"#00e5ff", marginRight: "8px"}}>[SYS]</span>
+            <span>8 modules loaded · 80+ questions · engine ready</span>
+          </div>
+        )}
       </div>
 
-      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-        <button className="btn btn-warn" onClick={onExam} style={{fontSize:12}}>⏱ EXAM SIMULATOR</button>
-        <button className="btn btn-info" onClick={onProgress} style={{fontSize:12}}>📊 PROGRESS TRACKER</button>
+      <div style={{display:"flex",gap:12,marginBottom:20,flexWrap:"wrap"}}>
+        <button className="btn btn-warn btn-pulse-warn" onClick={onExam} style={{fontSize:13, fontWeight: "bold", padding: "10px 20px"}}>
+          ⏱ INITIALIZE EXAM SIMULATOR
+        </button>
+        <button className="btn btn-info" onClick={onProgress} style={{fontSize:13, padding: "10px 20px"}}>
+          📊 VIEW PROGRESS TRACKER
+        </button>
       </div>
 
       <div className="home-grid">
@@ -1591,14 +1618,14 @@ function Home({ onSelect, onExam, onProgress }) {
             <div className="module-icon">{m.icon}</div>
             <div className="module-title">{m.title}{m.isNew&&<span className="new-badge">NEW</span>}</div>
             <div className="module-desc">{m.desc}</div>
-            <div className="module-tag" style={m.isNew?{color:"#00ccff88",borderColor:"#00ccff33"}:{}}>{m.tag}</div>
+            <div className="module-tag" style={m.isNew?{color:"#1de9b6",borderColor:"rgba(29,233,182,0.3)", background: "rgba(29,233,182,0.05)"}:{}}>{m.tag}</div>
           </div>
         ))}
       </div>
 
-      <div style={{marginTop:14,padding:12,border:"1px solid #00ff4122",fontSize:12,color:"#00ff4166",lineHeight:1.8}}>
-        <span style={{color:"#00ff41aa",letterSpacing:2,fontSize:10}}>CCNA 200-301 COVERAGE: </span>
-        {["Network Fundamentals","IP Connectivity","IP Services","Security Fundamentals","Automation","Network Access","IPv6","Wireless"].map(t=>`▸ ${t}`).join("  ")}
+      <div style={{marginTop:20,padding:16,border:"1px dashed rgba(0,229,255,0.2)",fontSize:12,color:"rgba(255,255,255,0.5)",lineHeight:1.8, borderRadius: "4px"}}>
+        <span style={{color:"#00e5ff",letterSpacing:2,fontSize:11, fontWeight: "bold"}}>CCNA 200-301 COVERAGE: </span><br/>
+        {["Network Fundamentals","IP Connectivity","IP Services","Security Fundamentals","Automation","Network Access","IPv6","Wireless"].map(t=>`▸ ${t}`).join("   ")}
       </div>
     </div>
   );
