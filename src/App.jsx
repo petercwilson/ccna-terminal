@@ -145,6 +145,35 @@ const styles = `
   .drag-chip:hover { border-color: #1de9b6; }
   .drag-chip:active { cursor: grabbing; border-color: #1de9b6; background: rgba(29, 233, 182, 0.1); transform: translateY(2px); box-shadow: 0 1px 2px rgba(0,0,0,0.4); }
   .empty-port-text { font-family: 'Hack', monospace; font-size: 12px; color: rgba(0,229,255,0.2); width: 100%; text-align: center; pointer-events: none; }
+
+  /* =========================================
+     3. DYNAMIC UI UPGRADES (ANIMATIONS & GLOWS)
+     ========================================= */
+     
+  /* Blinking Terminal Cursor */
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  .cursor { display: inline-block; width: 8px; height: 16px; background-color: #00e5ff; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 6px; transform: translateY(2px); }
+  
+  /* Pulsing Attention Button */
+  @keyframes pulseWarn {
+    0% { box-shadow: 0 0 5px rgba(255, 170, 0, 0.2); }
+    50% { box-shadow: 0 0 18px rgba(255, 170, 0, 0.6); }
+    100% { box-shadow: 0 0 5px rgba(255, 170, 0, 0.2); }
+  }
+  .btn-pulse-warn { animation: pulseWarn 2.5s infinite; }
+  
+  /* Enhanced Card Hover Glows */
+  .module-card { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease; }
+  .module-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,229,255,0.15), inset 0 0 15px rgba(0,229,255,0.05); border-color: #00e5ff; }
+  .module-card.new-card:hover { box-shadow: 0 10px 30px rgba(29,233,182,0.15), inset 0 0 15px rgba(29,233,182,0.05); }
+
+  /* Segmented LED Progress Bars */
+  .progress-fill, .exam-domain-fill, .progress-bar-fill { 
+    background-color: #00e5ff; 
+    /* This creates the dark gaps between the "LEDs" */
+    background-image: repeating-linear-gradient(90deg, transparent, transparent 6px, #04080c 6px, #04080c 8px); 
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); 
+  }
 `;
 
 // ─── QUESTION BANKS ──────────────────────────────────────────────────────────
