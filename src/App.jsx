@@ -31,7 +31,7 @@ const styles = `
   .main { padding: 18px 20px; max-width: 1140px; margin: 0 auto; }
 
   /* IOS TERMINAL STYLING */
-  .ios-terminal {
+  /*.ios-terminal {
     background: #04080c;
     border: 1px solid #00e5ff33;
     padding: 20px;
@@ -43,7 +43,11 @@ const styles = `
     border-radius: 4px;
     box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
   }
-  .ios-input-line { display: flex; align-items: center; gap: 8px; }
+  */
+  
+  /*.ios-input-line { display: flex; align-items: center; gap: 8px; }*/
+  
+  /* Ensure the native caret is still hidden for that terminal feel */
   .ios-input-line input {
     background: transparent;
     border: none;
@@ -176,7 +180,7 @@ const styles = `
      ========================================= */
      
   /* Blinking Terminal Cursor */
-  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  /*@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }*/
   .cursor { display: inline-block; width: 8px; height: 16px; background-color: #00e5ff; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 6px; transform: translateY(2px); }
   
   /* Pulsing Attention Button */
