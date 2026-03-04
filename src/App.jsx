@@ -29,6 +29,31 @@ const styles = `
   .nav-btn.progress-btn:hover, .nav-btn.progress-btn.active { background: rgba(0,204,255,0.1); border-color: #00ccff; color: #00ccff; }
   
   .main { padding: 18px 20px; max-width: 1140px; margin: 0 auto; }
+
+  /* IOS TERMINAL STYLING */
+  .ios-terminal {
+    background: #04080c;
+    border: 1px solid #00e5ff33;
+    padding: 20px;
+    font-family: 'Hack', monospace;
+    font-size: 14px;
+    color: #00e5ff;
+    height: 400px;
+    overflow-y: auto;
+    border-radius: 4px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+  }
+  .ios-input-line { display: flex; align-items: center; gap: 8px; }
+  .ios-input-line input {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-family: 'Hack', monospace;
+    font-size: 14px;
+    outline: none;
+    flex: 1;
+  }
+  .ios-history { white-space: pre-wrap; }
   
   /* BUTTONS */
   .btn { background: rgba(0,229,255,0.05); border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Hack', monospace; font-size: 14px; padding: 8px 18px; cursor: pointer; transition: all 0.15s; }
@@ -276,6 +301,43 @@ const ALL_QUESTIONS = {
     {id:"au08",domain:"Automation",q:"Which Cisco platform provides a DNA Center controller?",choices:["Cisco DNA Center (Catalyst Center)","Cisco ASA","Cisco ISE","Cisco Prime"],answer:0,explain:"Cisco DNA Center (now Catalyst Center) is Cisco's SDN controller for campus networks, providing intent-based networking."},
   ],
 };
+
+// IOSLabModule function
+function IOSLabModule({ onHome }) {
+  const [labIdx, setLabIdx] = useState(0);
+  const labs = [
+    {
+      title: "Basic Device Hardening",
+      task: "Enter global configuration mode and change the device hostname to 'Core-Switch'.",
+      successMsg: "Hostname updated successfully!",
+      check: (cmd, full, host, mode) => host === "Core-Switch" && mode === "config"
+    },
+    {
+      title: "Verification Commands",
+      task: "Use the abbreviated 'show' command to check the status of all interfaces.",
+      successMsg: "You successfully viewed the interface brief!",
+      check: (cmd) => cmd === "sh ip int br" || cmd === "show ip int br"
+    }
+  ];
+
+  return (
+    <div>
+      <div className="teach-h1">// IOS COMMAND TRAINING</div>
+      <div className="teach-info">
+        <strong>LAB OBJECTIVE:</strong> {labs[labIdx].task}
+      </div>
+      <IOSSimulator 
+        labScenario={labs[labIdx]} 
+        onComplete={() => setTimeout(() => {
+          if (labIdx < labs.length - 1) setLabIdx(i => i + 1);
+        }, 2000)}
+      />
+      <div style={{marginTop: 15}}>
+        <button className="btn btn-danger" onClick={onHome}>← EXIT LAB</button>
+      </div>
+    </div>
+  );
+}
 
 // Flatten all questions for exam mode
 const EXAM_POOL = Object.values(ALL_QUESTIONS).flat();
@@ -860,6 +922,125 @@ function ProgressTracker({ onHome }) {
       <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
         <button className="btn btn-danger" style={{fontSize:11}} onClick={()=>{if(window.confirm("Reset all progress data?"))progress.reset();}}>RESET DATA</button>
         <button className="btn btn-info" onClick={onHome}>← HOME</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── IOS SIMULATOR COMPONENT ───────────────────────────────────────
+
+function IOSSimulator({ labScenario, onComplete }) {
+  const [history, setHistory] = useState([
+    "Cisco IOS Software, C2960 Software (C2960-LANBASEK9-M), Version 15.0(2)SE4",
+    "Copyright (c) 1986-2013 by Cisco Systems, Inc.",
+    "Compiled Wed 26-Jun-13 02:49 by mclaire",
+    ""
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [mode, setMode] = useState("user"); // user, privileged, config
+  const [hostname, setHostname] = useState("Switch");
+  const [commandHistory, setCommandHistory] = useState([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
+  const terminalEndRef = useRef(null);
+
+  const getPrompt = () => {
+    if (mode === "user") return `${hostname}>`;
+    if (mode === "privileged") return `${hostname}#`;
+    if (mode === "config") return `${hostname}(config)#`;
+    return `${hostname}>`;
+  };
+
+  const scrollToBottom = () => {
+    terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(scrollToBottom, [history]);
+
+  const handleCommand = (e) => {
+    if (e.key === "Enter") {
+      const cmd = inputValue.trim().toLowerCase();
+      const fullCmd = inputValue.trim();
+      processCommand(cmd, fullCmd);
+      setInputValue("");
+      setHistoryIdx(-1);
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      handleTabCompletion();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      if (commandHistory.length > 0) {
+        const newIdx = Math.min(historyIdx + 1, commandHistory.length - 1);
+        setHistoryIdx(newIdx);
+        setInputValue(commandHistory[commandHistory.length - 1 - newIdx]);
+      }
+    }
+  };
+
+  const processCommand = (cmd, fullCmd) => {
+    let output = [];
+    const newHistory = [...history, `${getPrompt()} ${fullCmd}`];
+    
+    if (fullCmd) setCommandHistory(prev => [...prev, fullCmd]);
+
+    // Command Logic
+    if (cmd === "enable" || cmd === "en") {
+      setMode("privileged");
+    } else if ((cmd === "configure terminal" || cmd === "conf t") && mode === "privileged") {
+      setMode("config");
+    } else if (cmd === "exit" || cmd === "ex") {
+      if (mode === "config") setMode("privileged");
+      else if (mode === "privileged") setMode("user");
+    } else if (cmd.startsWith("hostname ") && mode === "config") {
+      const newName = fullCmd.split(" ")[1];
+      setHostname(newName);
+    } else if (cmd === "show ip int br" || cmd === "sh ip int br") {
+      output = [
+        "Interface              IP-Address      OK? Method Status                Protocol",
+        "FastEthernet0/1        unassigned      YES unset  up                    up",
+        "FastEthernet0/2        unassigned      YES unset  down                  down",
+        "Vlan1                  192.168.1.1     YES manual up                    up"
+      ];
+    } else if (cmd === "?" || cmd === "help") {
+      output = mode === "config" 
+        ? ["  hostname    Set system's network name", "  exit        Exit from configure mode", "  interface   Select an interface to configure"]
+        : ["  enable      Turn on privileged commands", "  show        Show running system information", "  exit        Exit from the EXEC"];
+    } else if (cmd !== "") {
+      output = [`% Invalid input detected at '^' marker.`];
+    }
+
+    setHistory([...newHistory, ...output]);
+    
+    // Check Lab Objective
+    if (labScenario && labScenario.check(cmd, fullCmd, hostname, mode)) {
+      setHistory(prev => [...prev, "", "💡 OBJECTIVE COMPLETE: " + labScenario.successMsg]);
+      if (onComplete) onComplete();
+    }
+  };
+
+  const handleTabCompletion = () => {
+    const commands = ["enable", "configure terminal", "show ip interface brief", "hostname", "exit"];
+    const match = commands.find(c => c.startsWith(inputValue.toLowerCase()));
+    if (match) setInputValue(match);
+  };
+
+  return (
+    <div className="ios-terminal" onClick={() => document.getElementById('ios-input').focus()}>
+      <div className="ios-history">
+        {history.map((line, i) => <div key={i}>{line}</div>)}
+        <div className="ios-input-line">
+          <span>{getPrompt()}</span>
+          <input 
+            id="ios-input"
+            autoFocus
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={handleCommand}
+            autoComplete="off"
+            spellCheck="false"
+          />
+          <span className="cursor"></span>
+        </div>
+        <div ref={terminalEndRef} />
       </div>
     </div>
   );
@@ -1570,6 +1751,7 @@ const MODULES = [
   {id:"wireless",icon:"📡",title:"WIRELESS",desc:"802.11 standards, WLC architecture, CAPWAP, WPA3.",tag:"802.11 · WLC · WPA3",isNew:true},
   {id:"security",icon:"🛡️",title:"SECURITY",desc:"ACLs, AAA, RADIUS vs TACACS+, VPNs, L2 attack mitigations.",tag:"ACL · AAA · VPN",isNew:true},
   {id:"automation",icon:"⚡",title:"AUTOMATION",desc:"SDN, REST APIs, JSON/YAML, Ansible, DNA Center.",tag:"SDN · REST · ANSIBLE",isNew:true},
+  {id:"ioslab", icon:"⌨️", title:"IOS CONSOLE", desc:"Hands-on Cisco IOS training. Master the CLI with interactive lab scenarios.", tag:"CLI · CONFIG · SHOW", isNew:true},
 ];
 
 function Home({ onSelect, onExam, onProgress }) {
@@ -1680,6 +1862,7 @@ export default function App() {
           {view==="automation" && <AutomationModule onHome={()=>setView("home")}/>}
           {view==="exam"       && <ExamSimulator onHome={()=>setView("home")}/>}
           {view==="progress"   && <ProgressTracker onHome={()=>setView("home")}/>}
+          {view==="ioslab" && <IOSLabModule onHome={() => setView("home")}/>}
         </div>
       </div>
     </>
