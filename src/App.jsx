@@ -179,8 +179,9 @@ const styles = `
      ========================================= */
      
   /* Blinking Terminal Cursor */
-  /*@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }*/
+  /*@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
   .cursor { display: inline-block; width: 8px; height: 16px; background-color: #00e5ff; animation: blink 1s step-end infinite; vertical-align: middle; margin-left: 6px; transform: translateY(2px); }
+  */
   
   /* Pulsing Attention Button */
   @keyframes pulseWarn {
